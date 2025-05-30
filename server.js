@@ -12,10 +12,9 @@ const port = process.env.PORT || 9000;
 
 
 // Content Security Policy configurata correttamente
-
 app.use(
   helmet.contentSecurityPolicy({
-    useDefaults: false,
+    useDefaults: true,
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: [
@@ -39,11 +38,19 @@ app.use(
         "'unsafe-inline'"
       ],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https://www.gstatic.com"],
-      connectSrc: ["'self'"],
+      imgSrc: [
+        "'self'",
+        "data:",
+        "https://www.gstatic.com",
+        "https://avatars.dicebear.com",
+        "https://www.gravatar.com",
+        "https://render-prod-avatars.s3.us-west-2.amazonaws.com"
+      ],
+      connectSrc: ["'self'", "wss:", "https:"],
     }
   })
 );
+
 
 
 
