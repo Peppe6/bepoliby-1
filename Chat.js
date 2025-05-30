@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -62,10 +61,9 @@ function Chat() {
     <div className='Chat'>
       <div className='Chat_header'>
         <Avatar
-          src={user?.photoURL || `https://avatars.dicebear.com/api/human/${user?.uid || "default"}.svg`}
+          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roomName)}&background=random&color=fff&size=128`}
           onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = `https://avatars.dicebear.com/api/human/${user?.uid || "default"}.svg`;
+            e.currentTarget.src = "/default-avatar.png";
           }}
         />
         <div className='Chat_header_info'>
@@ -90,20 +88,24 @@ function Chat() {
         {roomMessages.map((message, index) => {
           const date = new Date(message.timestamp);
           const isValidDate = !isNaN(date);
+          const isOwnMessage = message.uid === user?.uid;
 
           return (
             <div
               key={index}
-              className={`Chat_message_container ${
-                message.uid === user?.uid ? "Chat_receiver_container" : ""
-              }`}
+              className={`Chat_message_container ${isOwnMessage ? "Chat_receiver_container" : ""}`}
             >
+              {!isOwnMessage && (
+                <Avatar
+                  className="Chat_avatar"
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`}
+                  onError={(e) => {
+                    e.currentTarget.src = "/default-avatar.png";
+                  }}
+                />
+              )}
               <span className="Chat_name_label">{message.name}</span>
-              <div
-                className={`Chat_message ${
-                  message.uid === user?.uid ? "Chat_receiver" : ""
-                }`}
-              >
+              <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
                 {message.message}
                 <span className="Chat_timestamp">
                   {isValidDate
@@ -142,3 +144,4 @@ function Chat() {
 }
 
 export default Chat;
+
