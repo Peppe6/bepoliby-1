@@ -3,9 +3,52 @@ const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
 const Pusher = require('pusher');
 const cors = require('cors');
-
+const helmet =require ('helmet');
 const app = express();
 const port = process.env.PORT || 9000;
+
+
+
+
+
+// Content Security Policy configurata correttamente
+
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "https://translate.google.com",
+        "https://www.gstatic.com",
+        "'unsafe-inline'"
+      ],
+      styleSrc: [
+        "'self'",
+        "https://fonts.googleapis.com",
+        "https://translate.googleapis.com",
+        "https://www.gstatic.com",
+        "'unsafe-inline'"
+      ],
+      styleSrcElem: [
+        "'self'",
+        "https://fonts.googleapis.com",
+        "https://translate.googleapis.com",
+        "https://www.gstatic.com",
+        "'unsafe-inline'"
+      ],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://www.gstatic.com"],
+      connectSrc: ["'self'"],
+    }
+  })
+);
+
+
+
+
+
 
 // Middleware
 app.use(express.json());
