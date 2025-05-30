@@ -1,0 +1,27 @@
+{
+  "name": "bepoliby-be",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/Peppe6/bepoliby#readme",
+  "bugs": {
+    "url": "https://github.com/Peppe6/bepoliby/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Peppe6/bepoliby.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "mongoose": "^8.15.1",
+    "pusher": "^5.2.0"
+  }
+}
