@@ -20,11 +20,11 @@ const SidebarChat = ({ id, name, lastMessageText }) => {
     <Link to={`/rooms/${id}`}>
       <div className="sidebarChat">
 <Avatar
-  src={`https://avatars.dicebear.com/api/human/${seed}.svg`}
-  onError={(e) => {
-    e.currentTarget.src = "/default-avatar.png"; // metti un'immagine nella tua cartella public/
-  }}
+  src={userAvatarUrl}
+  onError={(e) => { e.currentTarget.src = "/default-avatar.png"; }}
 />
+
+
 
         <div className="sidebarChat_info">
           <h2>{name} <span className="Chat-number">#{seed}</span></h2>
