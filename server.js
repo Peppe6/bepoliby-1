@@ -3,13 +3,9 @@ const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
 const Pusher = require('pusher');
 const cors = require('cors');
-const helmet =require ('helmet');
+const helmet = require('helmet');
 const app = express();
 const port = process.env.PORT || 9000;
-
-
-
-
 
 // Content Security Policy configurata correttamente
 app.use(
@@ -50,12 +46,6 @@ app.use(
     }
   })
 );
-
-
-
-
-
-
 
 // Middleware
 app.use(express.json());
@@ -113,10 +103,10 @@ app.get('/api', (req, res) => {
   res.status(200).send("Benvenuto sul Server");
 });
 
-// GET tutte le stanze
+// GET tutte le stanze ordinate per ultimo messaggio
 app.get("/api/v1/rooms", async (req, res) => {
   try {
-    const data = await Rooms.find();
+    const data = await Rooms.find().sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
   } catch (err) {
     res.status(500).send(err);
@@ -163,10 +153,13 @@ app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// POST nuovo messaggio in una stanza
+// POST nuovo messaggio in una stanza e aggiorna lastMessageTimestamp
 app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   const roomId = req.params.id;
   const dbMessage = req.body;
+
+  // Assicurati che timestamp sia un Date object
+  dbMessage.timestamp = new Date(dbMessage.timestamp);
 
   try {
     const room = await Rooms.findById(roomId);
@@ -175,9 +168,10 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
     }
 
     room.messages.push(dbMessage);
+    room.lastMessageTimestamp = dbMessage.timestamp; // aggiorna timestamp ultimo messaggio
     await room.save();
 
-    // Notifica Pusher (facoltativa)
+    // Notifica Pusher
     PusherClient.trigger("messages", "inserted", {
       roomId: roomId,
       message: dbMessage
@@ -203,4 +197,5 @@ process.on("unhandledRejection", (err) => {
 app.listen(port, () => {
   console.log(`🚀 Server in ascolto su http://localhost:${port}`);
 });
+
 
