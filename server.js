@@ -99,6 +99,10 @@ const PusherClient = new Pusher({
 });
 
 // Rotte API
+app.get('/', (req, res) => {
+  res.status(200).send('✅ API Bepoliby attiva sulla root');
+});
+
 app.get('/api', (req, res) => {
   res.status(200).send("Benvenuto sul Server");
 });
@@ -158,7 +162,6 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   const roomId = req.params.id;
   const dbMessage = req.body;
 
-  // Assicurati che timestamp sia un Date object
   dbMessage.timestamp = new Date(dbMessage.timestamp);
 
   try {
@@ -168,10 +171,9 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
     }
 
     room.messages.push(dbMessage);
-    room.lastMessageTimestamp = dbMessage.timestamp; // aggiorna timestamp ultimo messaggio
+    room.lastMessageTimestamp = dbMessage.timestamp;
     await room.save();
 
-    // Notifica Pusher
     PusherClient.trigger("messages", "inserted", {
       roomId: roomId,
       message: dbMessage
@@ -184,7 +186,7 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// Error handling globale (evita crash)
+// Error handling globale
 process.on("uncaughtException", (err) => {
   console.error("❗ Uncaught Exception:", err);
 });
