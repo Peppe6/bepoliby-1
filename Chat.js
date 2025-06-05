@@ -5,6 +5,8 @@ import { Avatar, IconButton } from '@mui/material';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStateValue } from '../StateProvider';
+import Pusher from 'pusher-js';
+import EmojiPicker from 'emoji-picker-react';
 
 function Chat() {
   const { roomId } = useParams();
@@ -14,14 +16,47 @@ function Chat() {
   const [roomMessages, setRoomMessages] = useState([]);
   const navigate = useNavigate();
   const [{ user }] = useStateValue();
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Variabile d'ambiente per API
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:9000';
+
+  const onEmojiClick = (emojiData) => {
+    setInput(prev => prev + emojiData.emoji);
+  };
+
+  useEffect(() => {
+    const pusher = new Pusher('6a10fce7f61c4c88633b', {
+      cluster: 'eu'
+    });
+
+    const channel = pusher.subscribe(`room_${roomId}`);
+    channel.bind('inserted', function (newMessage) {
+      const correctedTimestamp = newMessage.timestamp && !isNaN(new Date(newMessage.timestamp))
+        ? newMessage.timestamp
+        : new Date().toISOString();
+
+      const fixedMessage = {
+        ...newMessage,
+        timestamp: correctedTimestamp,
+      };
+
+      setRoomMessages(prevMessages => [...prevMessages, fixedMessage]);
+    });
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+    };
+  }, [roomId]);
 
   useEffect(() => {
     const fetchRoomData = async () => {
       try {
-        const roomRes = await axios.get(`http://127.0.0.1:9000/api/v1/rooms/${roomId}`);
+        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         setRoomName(roomRes.data.name);
 
-        const messagesRes = await axios.get(`http://127.0.0.1:9000/api/v1/rooms/${roomId}/messages`);
+        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`);
         setRoomMessages(messagesRes.data);
 
         const lastMsg = messagesRes.data[messagesRes.data.length - 1];
@@ -33,7 +68,7 @@ function Chat() {
     };
 
     if (roomId) fetchRoomData();
-  }, [roomId, navigate]);
+  }, [roomId, navigate, apiUrl]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -47,7 +82,7 @@ function Chat() {
         uid: user?.uid || "default",
       };
 
-      await axios.post(`http://127.0.0.1:9000/api/v1/rooms/${roomId}/messages`, newMessage);
+      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
       setInput("");
 
       setRoomMessages(prev => [...prev, newMessage]);
@@ -58,7 +93,7 @@ function Chat() {
   };
 
   return (
-    <div className='Chat'>
+    <div className='Chat' key={roomId}>
       <div className='Chat_header'>
         <Avatar
           src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roomName)}&background=random&color=fff&size=128`}
@@ -92,7 +127,7 @@ function Chat() {
 
           return (
             <div
-              key={index}
+              key={message._id || index}
               className={`Chat_message_container ${isOwnMessage ? "Chat_receiver_container" : ""}`}
             >
               {!isOwnMessage && (
@@ -104,7 +139,7 @@ function Chat() {
                   }}
                 />
               )}
-              <span className="Chat_name_label">{message.name}</span>
+              <span className="Chat_name">{message.name}</span>
               <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
                 {message.message}
                 <span className="Chat_timestamp">
@@ -126,7 +161,7 @@ function Chat() {
       </div>
 
       <div className='Chat_footer'>
-        <IconButton>
+        <IconButton onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
           <InsertEmoticon />
         </IconButton>
         <form onSubmit={sendMessage}>
@@ -138,10 +173,22 @@ function Chat() {
           />
           <button type="submit">Invia</button>
         </form>
+        {showEmojiPicker && (
+          <EmojiPicker
+            onEmojiClick={(emojiData) => {
+              onEmojiClick(emojiData);
+              setShowEmojiPicker(false);
+            }}
+            width={300}
+            height={350}
+          />
+        )}
       </div>
     </div>
   );
 }
 
 export default Chat;
+
+
 
