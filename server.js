@@ -1,9 +1,11 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
+const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
@@ -75,8 +77,6 @@ db.once("open", () => {
       const updatedFields = change.updateDescription.updatedFields;
       if (updatedFields && Object.keys(updatedFields).some(key => key.startsWith("messages"))) {
         console.log("🔔 Nuovo messaggio rilevato");
-
-        // Trigger evento Pusher generico
         PusherClient.trigger("messages", "inserted", {
           message: "Nuovo messaggio in una stanza"
         });
@@ -107,7 +107,6 @@ app.get('/api', (req, res) => {
   res.status(200).send("Benvenuto sul Server");
 });
 
-// GET tutte le stanze ordinate per ultimo messaggio
 app.get("/api/v1/rooms", async (req, res) => {
   try {
     const data = await Rooms.find().sort({ lastMessageTimestamp: -1 });
@@ -117,7 +116,6 @@ app.get("/api/v1/rooms", async (req, res) => {
   }
 });
 
-// POST nuova stanza
 app.post("/api/v1/rooms", async (req, res) => {
   try {
     console.log("📥 Richiesta creazione stanza:", req.body);
@@ -129,7 +127,6 @@ app.post("/api/v1/rooms", async (req, res) => {
   }
 });
 
-// GET stanza per ID
 app.get("/api/v1/rooms/:id", async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -143,7 +140,6 @@ app.get("/api/v1/rooms/:id", async (req, res) => {
   }
 });
 
-// GET messaggi di una stanza
 app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -157,11 +153,9 @@ app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// POST nuovo messaggio in una stanza e aggiorna lastMessageTimestamp
 app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   const roomId = req.params.id;
   const dbMessage = req.body;
-
   dbMessage.timestamp = new Date(dbMessage.timestamp);
 
   try {
@@ -186,6 +180,16 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const clientPath = path.join(__dirname, 'bepoliby-fe', 'build');
+  app.use(express.static(clientPath));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientPath, 'index.html'));
+  });
+}
+
 // Error handling globale
 process.on("uncaughtException", (err) => {
   console.error("❗ Uncaught Exception:", err);
@@ -195,7 +199,6 @@ process.on("unhandledRejection", (err) => {
   console.error("❗ Unhandled Rejection:", err);
 });
 
-// Avvio server
 app.listen(port, () => {
   console.log(`🚀 Server in ascolto su http://localhost:${port}`);
 });
