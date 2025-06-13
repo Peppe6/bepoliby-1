@@ -9,7 +9,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// Content Security Policy configurata correttamente
+// ✅ Content Security Policy aggiornata con http://localhost:9000
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -44,7 +44,13 @@ app.use(
         "https://www.gravatar.com",
         "https://render-prod-avatars.s3.us-west-2.amazonaws.com"
       ],
-      connectSrc: ["'self'", "wss:", "https:"],
+      connectSrc: [
+        "'self'",
+        "wss:",
+        "https:",
+        "http://localhost:3000",
+        "http://localhost:9000" // ✅ aggiunto correttamente
+      ],
     }
   })
 );
@@ -67,21 +73,33 @@ mongoose.connect(connectionDbUrl, {
 
 const db = mongoose.connection;
 db.once("open", () => {
-  console.log("🟢 Database connesso");
+  console.log("📡 Database connesso");
 
   const roomCollection = db.collection("rooms");
   const changeStream = roomCollection.watch();
 
-  changeStream.on("change", (change) => {
+  changeStream.on("change", async (change) => {
     if (change.operationType === "update") {
       const updatedFields = change.updateDescription.updatedFields;
-      if (updatedFields && Object.keys(updatedFields).some(key => key.startsWith("messages"))) {
-        console.log("🔔 Nuovo messaggio rilevato");
 
-        // Trigger evento Pusher generico
-        PusherClient.trigger("messages", "inserted", {
-          message: "Nuovo messaggio in una stanza"
-        });
+      if (updatedFields && Object.keys(updatedFields).some(key => key.startsWith("messages"))) {
+        console.log("🟢 Nuovo messaggio rilevato");
+
+        const roomId = change.documentKey._id.toString();
+
+        try {
+          const room = await Rooms.findById(roomId);
+          const lastMessage = room.messages.length > 0 ? room.messages[room.messages.length - 1] : null;
+
+          if (lastMessage) {
+            PusherClient.trigger(`room_${roomId}`, "inserted", {
+              roomId,
+              message: lastMessage,
+            });
+          }
+        } catch (err) {
+          console.error("❌ Errore recupero stanza per ChangeStream:", err);
+        }
       }
     }
   });
@@ -102,14 +120,13 @@ const PusherClient = new Pusher({
 
 // Rotte API
 app.get('/', (req, res) => {
-  res.status(200).send('✅ API Bepoliby attiva sulla root');
+  res.status(200).send('🌐 API Bepoliby attiva sulla root');
 });
 
 app.get('/api', (req, res) => {
-  res.status(200).send("Benvenuto sul Server");
+  res.status(200).send("🎉 Benvenuto sul Server");
 });
 
-// GET tutte le stanze ordinate per ultimo messaggio
 app.get("/api/v1/rooms", async (req, res) => {
   try {
     const data = await Rooms.find().sort({ lastMessageTimestamp: -1 });
@@ -119,11 +136,17 @@ app.get("/api/v1/rooms", async (req, res) => {
   }
 });
 
-// POST nuova stanza
 app.post("/api/v1/rooms", async (req, res) => {
   try {
     console.log("📥 Richiesta creazione stanza:", req.body);
-    const data = await Rooms.create(req.body);
+
+    const roomData = {
+      name: req.body.name,
+      messages: [],
+      lastMessageTimestamp: null
+    };
+
+    const data = await Rooms.create(roomData);
     res.status(201).send(data);
   } catch (err) {
     console.error("❌ Errore creazione stanza:", err);
@@ -131,7 +154,6 @@ app.post("/api/v1/rooms", async (req, res) => {
   }
 });
 
-// GET stanza per ID
 app.get("/api/v1/rooms/:id", async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -145,7 +167,6 @@ app.get("/api/v1/rooms/:id", async (req, res) => {
   }
 });
 
-// GET messaggi di una stanza
 app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -159,7 +180,6 @@ app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// POST nuovo messaggio in una stanza e aggiorna lastMessageTimestamp
 app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   const roomId = req.params.id;
   const dbMessage = req.body;
@@ -176,7 +196,7 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
     room.lastMessageTimestamp = dbMessage.timestamp;
     await room.save();
 
-    PusherClient.trigger("messages", "inserted", {
+    PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId: roomId,
       message: dbMessage
     });
@@ -199,17 +219,18 @@ if (process.env.NODE_ENV === 'production') {
 
 // Error handling globale
 process.on("uncaughtException", (err) => {
-  console.error("❗ Uncaught Exception:", err);
+  console.error("❌ Uncaught Exception:", err);
 });
 
 process.on("unhandledRejection", (err) => {
-  console.error("❗ Unhandled Rejection:", err);
+  console.error("❌ Unhandled Rejection:", err);
 });
 
 // Avvio server
 app.listen(port, () => {
   console.log(`🚀 Server in ascolto su http://localhost:${port}`);
 });
+
 
 
 
