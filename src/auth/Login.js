@@ -18,7 +18,8 @@ const Login = () => {
           uid: result.user.uid,
           displayName: result.user.displayName || "Utente",
           email: result.user.email,
-          photoURL: result.user.photoURL,
+        photoURL: `https://ui-avatars.com/api/?name=${encodeURIComponent(result.user.displayName || "Utente")}&background=random&color=fff`,
+ 
         };
 
         // Salva nel context globale
