@@ -1,3 +1,4 @@
+
 .Chat {
   display: flex;
   flex-direction: column;
@@ -53,6 +54,7 @@
 .Chat_body::-webkit-scrollbar {
   width: 8px;
 }
+
 .Chat_body::-webkit-scrollbar-thumb {
   background-color: #bbb;
   border-radius: 4px;
@@ -64,6 +66,7 @@
   align-items: flex-start;
   max-width: 60%;
 }
+
 .Chat_receiver_container {
   display: flex;
   flex-direction: column;
@@ -114,9 +117,8 @@
   background-color: white;
   padding: 0 20px;
   flex-shrink: 0;
-  position: relative; /* aggiungi questa riga */
+  position: relative;
 }
-
 
 .Chat_footer > form {
   flex: 1;
@@ -139,8 +141,28 @@
   box-shadow: 0 0 5px #4caf50;
 }
 
+/* Stile per il bottone INVIA */
 .Chat_footer > form > button {
-  display: none;
+  display: inline-block;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  margin-left: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  transition: background-color 0.3s ease;
+}
+
+.Chat_footer > form > button:disabled {
+  background-color: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.Chat_footer > form > button:hover:not(:disabled) {
+  background-color: #388e3c;
 }
 
 .Chat_footer > .MuiSvgIcon-root {
@@ -153,4 +175,3 @@
 .Chat_footer > .MuiSvgIcon-root:hover {
   color: #4caf50;
 }
-

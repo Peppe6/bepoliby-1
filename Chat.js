@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -18,8 +19,7 @@ function Chat() {
   const [{ user }] = useStateValue();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Variabile d'ambiente per API
-  const apiUrl = process.env.REACT_APP_API_URL || 'http://127.0.0.1:9000';
+  const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
@@ -31,17 +31,29 @@ function Chat() {
     });
 
     const channel = pusher.subscribe(`room_${roomId}`);
-    channel.bind('inserted', function (newMessage) {
-      const correctedTimestamp = newMessage.timestamp && !isNaN(new Date(newMessage.timestamp))
-        ? newMessage.timestamp
-        : new Date().toISOString();
 
-      const fixedMessage = {
-        ...newMessage,
-        timestamp: correctedTimestamp,
-      };
+    channel.bind('inserted', function (payload) {
+      const newMsg = payload.message;
 
-      setRoomMessages(prevMessages => [...prevMessages, fixedMessage]);
+      setRoomMessages(prevMessages => {
+        if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
+
+        const tempIndex = prevMessages.findIndex(m =>
+          m._id && m._id.startsWith('temp-') &&
+          m.message === newMsg.message &&
+          m.uid === newMsg.uid
+        );
+
+        if (tempIndex !== -1) {
+          const copy = [...prevMessages];
+          copy[tempIndex] = newMsg;
+          return copy;
+        }
+
+        return [...prevMessages, newMsg];
+      });
+
+      setLastSeen(newMsg.timestamp);
     });
 
     return () => {
@@ -62,7 +74,6 @@ function Chat() {
         const lastMsg = messagesRes.data[messagesRes.data.length - 1];
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
-        console.error("❌ Errore nel recupero della stanza o dei messaggi:", err);
         navigate("/");
       }
     };
@@ -74,21 +85,29 @@ function Chat() {
     e.preventDefault();
     if (!input.trim()) return;
 
+    const tempId = `temp-${Date.now()}`;
+    const newMessage = {
+      _id: tempId,
+      message: input,
+      name: user?.displayName || "Anonimo",
+      timestamp: new Date().toISOString(),
+      uid: user?.uid || "default",
+    };
+
+    setRoomMessages(prev => [...prev, newMessage]);
+    setInput("");
+
     try {
-      const newMessage = {
-        message: input,
-        name: user?.displayName || "Anonimo",
-        timestamp: new Date().toISOString(),
-        uid: user?.uid || "default",
-      };
-
-      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
-      setInput("");
-
-      setRoomMessages(prev => [...prev, newMessage]);
-      setLastSeen(newMessage.timestamp);
+      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, {
+        message: newMessage.message,
+        name: newMessage.name,
+        timestamp: newMessage.timestamp,
+        uid: newMessage.uid,
+      });
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
+      setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
+      alert("Errore nell'invio del messaggio, riprova.");
     }
   };
 
@@ -171,7 +190,7 @@ function Chat() {
             placeholder="Scrivi un messaggio..."
             type="text"
           />
-          <button type="submit">Invia</button>
+          <button type="submit" disabled={!input.trim()}>Invia</button>
         </form>
         {showEmojiPicker && (
           <EmojiPicker
@@ -189,6 +208,10 @@ function Chat() {
 }
 
 export default Chat;
+
+
+
+
 
 
 
