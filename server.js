@@ -1,3 +1,4 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
@@ -9,7 +10,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Content Security Policy aggiornata con http://localhost:9000
+// ✅ Sicurezza CSP
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -49,7 +50,7 @@ app.use(
         "wss:",
         "https:",
         "http://localhost:3000",
-        "http://localhost:9000" // ✅ aggiunto correttamente
+        "http://localhost:9000"
       ],
     }
   })
@@ -59,7 +60,7 @@ app.use(
 app.use(express.json());
 app.use(cors());
 
-// MongoDB connection
+// MongoDB
 const connectionDbUrl = "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(connectionDbUrl, {
@@ -109,7 +110,7 @@ db.once("open", () => {
   });
 });
 
-// Pusher config
+// Pusher
 const PusherClient = new Pusher({
   appId: "1999725",
   key: "6a10fce7f61c4c88633b",
@@ -118,7 +119,7 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// Rotte API
+// API routes
 app.get('/', (req, res) => {
   res.status(200).send('🌐 API Bepoliby attiva sulla root');
 });
@@ -208,16 +209,16 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// Serve il frontend React in produzione
+// ✅ Serve React dalla cartella build in produzione
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../bepoliby-fe/build')));
+  app.use(express.static(path.join(__dirname, 'build')));
 
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../bepoliby-fe/build', 'index.html'));
+    res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
 }
 
-// Error handling globale
+// Errori globali
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 });
