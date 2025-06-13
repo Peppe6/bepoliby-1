@@ -211,10 +211,10 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
 
 // ✅ Serve React dalla cartella build in produzione
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'build')));
+  app.use(express.static(path.join(__dirname, '../bepoliby-fe/build')));
 
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'build', 'index.html'));
+    res.sendFile(path.join(__dirname, '../bepoliby-fe/build', 'index.html'));
   });
 }
 
@@ -231,7 +231,6 @@ process.on("unhandledRejection", (err) => {
 app.listen(port, () => {
   console.log(`🚀 Server in ascolto su http://localhost:${port}`);
 });
-
 
 
 
