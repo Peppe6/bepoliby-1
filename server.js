@@ -1,4 +1,3 @@
-
 const express = require('express');
 const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
@@ -20,21 +19,21 @@ app.use(
         "'self'",
         "https://translate.google.com",
         "https://www.gstatic.com",
-        "'unsafe-inline'"
+        "'unsafe-inline'",
       ],
       styleSrc: [
         "'self'",
         "https://fonts.googleapis.com",
         "https://translate.googleapis.com",
         "https://www.gstatic.com",
-        "'unsafe-inline'"
+        "'unsafe-inline'",
       ],
       styleSrcElem: [
         "'self'",
         "https://fonts.googleapis.com",
         "https://translate.googleapis.com",
         "https://www.gstatic.com",
-        "'unsafe-inline'"
+        "'unsafe-inline'",
       ],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       imgSrc: [
@@ -43,16 +42,16 @@ app.use(
         "https://www.gstatic.com",
         "https://avatars.dicebear.com",
         "https://www.gravatar.com",
-        "https://render-prod-avatars.s3.us-west-2.amazonaws.com"
+        "https://render-prod-avatars.s3.us-west-2.amazonaws.com",
       ],
       connectSrc: [
         "'self'",
         "wss:",
         "https:",
         "http://localhost:3000",
-        "http://localhost:9000"
+        "http://localhost:9000",
       ],
-    }
+    },
   })
 );
 
@@ -60,17 +59,21 @@ app.use(
 app.use(express.json());
 app.use(cors());
 
-// MongoDB
-const connectionDbUrl = "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
+// MongoDB connection
+const connectionDbUrl =
+  "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
 
-mongoose.connect(connectionDbUrl, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-}).then(() => {
-  console.log("✅ MongoDB connected successfully");
-}).catch((err) => {
-  console.error("❌ MongoDB connection error:", err);
-});
+mongoose
+  .connect(connectionDbUrl, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log("✅ MongoDB connected successfully");
+  })
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+  });
 
 const db = mongoose.connection;
 db.once("open", () => {
@@ -83,14 +86,18 @@ db.once("open", () => {
     if (change.operationType === "update") {
       const updatedFields = change.updateDescription.updatedFields;
 
-      if (updatedFields && Object.keys(updatedFields).some(key => key.startsWith("messages"))) {
+      if (
+        updatedFields &&
+        Object.keys(updatedFields).some((key) => key.startsWith("messages"))
+      ) {
         console.log("🟢 Nuovo messaggio rilevato");
 
         const roomId = change.documentKey._id.toString();
 
         try {
           const room = await Rooms.findById(roomId);
-          const lastMessage = room.messages.length > 0 ? room.messages[room.messages.length - 1] : null;
+          const lastMessage =
+            room.messages.length > 0 ? room.messages[room.messages.length - 1] : null;
 
           if (lastMessage) {
             PusherClient.trigger(`room_${roomId}`, "inserted", {
@@ -110,7 +117,7 @@ db.once("open", () => {
   });
 });
 
-// Pusher
+// Pusher config
 const PusherClient = new Pusher({
   appId: "1999725",
   key: "6a10fce7f61c4c88633b",
@@ -120,11 +127,11 @@ const PusherClient = new Pusher({
 });
 
 // API routes
-app.get('/', (req, res) => {
-  res.status(200).send('🌐 API Bepoliby attiva sulla root');
+app.get("/", (req, res) => {
+  res.status(200).send("🌐 API Bepoliby attiva sulla root");
 });
 
-app.get('/api', (req, res) => {
+app.get("/api", (req, res) => {
   res.status(200).send("🎉 Benvenuto sul Server");
 });
 
@@ -144,7 +151,7 @@ app.post("/api/v1/rooms", async (req, res) => {
     const roomData = {
       name: req.body.name,
       messages: [],
-      lastMessageTimestamp: null
+      lastMessageTimestamp: null,
     };
 
     const data = await Rooms.create(roomData);
@@ -199,7 +206,7 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
 
     PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId: roomId,
-      message: dbMessage
+      message: dbMessage,
     });
 
     res.status(201).json(dbMessage);
@@ -209,16 +216,16 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// ✅ Serve React dalla cartella build in produzione
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../bepoliby-fe/build')));
+// Serve React build in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
 
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../bepoliby-fe/build', 'index.html'));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../bepoliby-fe/build", "index.html"));
   });
 }
 
-// Errori globali
+// Global error handlers
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 });
@@ -227,10 +234,13 @@ process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Rejection:", err);
 });
 
-// Avvio server
-app.listen(port, () => {
-  console.log(`🚀 Server in ascolto su http://localhost:${port}`);
+// Start server and increase timeouts
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`🚀 Server in ascolto su http://0.0.0.0:${port}`);
 });
+
+server.keepAliveTimeout = 120000; // 120s
+server.headersTimeout = 121000;   // 121s
 
 
 
