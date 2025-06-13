@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -11,15 +12,17 @@ import { useStateValue } from '../StateProvider';
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
+  const [searchTerm, setSearchTerm] = useState(""); // 🆕 Stato per la ricerca
   const [{ user }] = useStateValue();
 
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:9000/api/v1/rooms");
+        console.log("Chiamata GET /api/v1/rooms");
+        const response = await axios.get("/api/v1/rooms");
         setRooms(response.data);
       } catch (error) {
-        console.error("❌ Errore nel caricamento delle stanze:", error);
+        console.error("Errore nel caricamento delle stanze:", error);
       }
     };
 
@@ -27,16 +30,21 @@ const Sidebar = () => {
   }, []);
 
   const createChat = async () => {
+    console.log("createChat chiamato");
     const roomName = prompt("Inserisci un nome per la Chat!");
     if (roomName && roomName.trim()) {
       try {
-        const response = await axios.post("http://127.0.0.1:9000/api/v1/rooms", {
+        console.log("Nome stanza:", roomName.trim());
+        const response = await axios.post("/api/v1/rooms", {
           name: roomName.trim(),
         });
+        console.log("Risposta creazione stanza:", response.data);
         setRooms(prev => [...prev, response.data]);
       } catch (error) {
-        console.error("❌ Errore nella creazione della stanza:", error);
+        console.error("Errore nella creazione della stanza:", error);
       }
+    } else {
+      console.log("Creazione stanza annullata o nome non valido");
     }
   };
 
@@ -59,33 +67,45 @@ const Sidebar = () => {
       <div className="sidebar_search">
         <div className="sidebar_search_container">
           <SearchIcon />
-          <input type="text" placeholder="Cerca o inizia una nuova chat" />
+          <input
+            type="text"
+            placeholder="Cerca o inizia una nuova chat"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
       <div className="sidebar_chats">
-        <div onClick={createChat} className="sidebarChat addNewChat">
+        <div onClick={createChat} className="sidebarChat addNewChat" style={{ cursor: 'pointer' }}>
           <h3>➕ Aggiungi nuova chat</h3>
         </div>
 
-        {rooms.map((room) => {
-          const messages = room.messages || [];
-          const lastMessage = messages[messages.length - 1]?.message || "";
+        {rooms
+          .filter((room) =>
+            room.name.toLowerCase().includes(searchTerm.toLowerCase())
+          )
+          .map((room) => {
+            const messages = room.messages || [];
+            const lastMessage = messages[messages.length - 1]?.message || "";
 
-          return (
-            <SidebarChat
-              key={room._id}
-              id={room._id}
-              name={room.name}
-              lastMessageText={lastMessage}
-            />
-          );
-        })}
+            return (
+              <SidebarChat
+                key={room._id}
+                id={room._id}
+                name={room.name}
+                lastMessageText={lastMessage}
+              />
+            );
+          })}
       </div>
     </div>
   );
 };
 
 export default Sidebar;
+
+
+
 
 
