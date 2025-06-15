@@ -117,6 +117,7 @@ function Chat() {
         <Avatar
           src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roomName)}&background=random&color=fff&size=128`}
           onError={(e) => {
+            e.currentTarget.onerror = null;
             e.currentTarget.src = "/default-avatar.png";
           }}
         />
@@ -154,6 +155,7 @@ function Chat() {
                   className="Chat_avatar"
                   src={`https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`}
                   onError={(e) => {
+                    e.currentTarget.onerror = null;
                     e.currentTarget.src = "/default-avatar.png";
                   }}
                 />
