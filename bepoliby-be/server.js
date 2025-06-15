@@ -9,7 +9,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Helmet (opzionale, resta per sicurezza generale)
+// Helmet con Content Security Policy configurata per includere apis.google.com
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -56,20 +56,16 @@ app.use(
   })
 );
 
-// ✅ Forza header CSP manualmente per Render
-app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://translate.googleapis.com https://translate.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://translate.googleapis.com https://www.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://www.gstatic.com https://avatars.dicebear.com https://www.gravatar.com https://render-prod-avatars.s3.us-west-2.amazonaws.com; connect-src 'self' wss: https: http://localhost:3000 http://localhost:9000"
-  );
-  next();
-});
+// **RIMUOVI** il middleware che imposta manualmente l'header CSP per evitare conflitti
+// app.use((req, res, next) => {
+//   res.setHeader("Content-Security-Policy", "...");
+//   next();
+// });
 
-// Middleware
 app.use(express.json());
 app.use(cors());
 
-// MongoDB connection
+// Connessione a MongoDB
 const connectionDbUrl =
   "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
 
@@ -78,12 +74,8 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => {
-    console.log("✅ MongoDB connected successfully");
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err);
-  });
+  .then(() => console.log("✅ MongoDB connected successfully"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 const db = mongoose.connection;
 db.once("open", () => {
@@ -107,7 +99,9 @@ db.once("open", () => {
         try {
           const room = await Rooms.findById(roomId);
           const lastMessage =
-            room.messages.length > 0 ? room.messages[room.messages.length - 1] : null;
+            room.messages.length > 0
+              ? room.messages[room.messages.length - 1]
+              : null;
 
           if (lastMessage) {
             PusherClient.trigger(`room_${roomId}`, "inserted", {
@@ -127,7 +121,7 @@ db.once("open", () => {
   });
 });
 
-// Pusher config
+// Config Pusher
 const PusherClient = new Pusher({
   appId: "1999725",
   key: "6a10fce7f61c4c88633b",
@@ -136,7 +130,7 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// API routes
+// Rotte API
 app.get("/", (req, res) => {
   res.status(200).send("🌐 API Bepoliby attiva sulla root");
 });
@@ -235,7 +229,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Global error handlers
+// Gestione errori globali
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 });
@@ -244,12 +238,13 @@ process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Rejection:", err);
 });
 
-// Start server and increase timeouts
+// Avvio server
 const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
 
 server.keepAliveTimeout = 120000;
 server.headersTimeout = 121000;
+
 
 
