@@ -1,3 +1,4 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
@@ -9,7 +10,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Sicurezza CSP
+// ✅ Sicurezza CSP aggiornata con https://apis.google.com
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -19,6 +20,7 @@ app.use(
         "'self'",
         "https://translate.google.com",
         "https://www.gstatic.com",
+        "https://apis.google.com", // ✅ Aggiunto per login Google
         "'unsafe-inline'",
       ],
       styleSrc: [
@@ -225,8 +227,6 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-
-
 // Global error handlers
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
@@ -241,9 +241,7 @@ const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
 
-
 server.keepAliveTimeout = 120000; // 120s
 server.headersTimeout = 121000;   // 121s
-
 
 
