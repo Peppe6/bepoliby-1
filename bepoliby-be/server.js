@@ -237,9 +237,10 @@ process.on("unhandledRejection", (err) => {
 });
 
 // Start server and increase timeouts
-const server = app.listen(port, "0.0.0.0", () => {
-  console.log(`🚀 Server in ascolto su http://0.0.0.0:${port}`);
+const server = app.listen(port, () => {
+  console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
+
 
 server.keepAliveTimeout = 120000; // 120s
 server.headersTimeout = 121000;   // 121s
