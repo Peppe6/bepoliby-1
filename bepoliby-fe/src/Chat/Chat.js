@@ -5,7 +5,6 @@ import "./Chat.css";
 import { Avatar, IconButton } from '@mui/material';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useStateValue } from '../StateProvider';
 import Pusher from 'pusher-js';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -16,16 +15,37 @@ function Chat() {
   const [lastSeen, setLastSeen] = useState("");
   const [roomMessages, setRoomMessages] = useState([]);
   const navigate = useNavigate();
-  const [{ user }] = useStateValue();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  const [userId, setUserId] = useState(null);
+  const [userName, setUserName] = useState(null);
+
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
+
+  // Genera o recupera userId e userName persistenti dal localStorage
+  useEffect(() => {
+    let storedId = localStorage.getItem('chatUserId');
+    if (!storedId) {
+      storedId = 'user-' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('chatUserId', storedId);
+    }
+    setUserId(storedId);
+
+    let storedName = localStorage.getItem('chatUserName');
+    if (!storedName) {
+      storedName = 'Anonimo-' + Math.floor(Math.random() * 1000);
+      localStorage.setItem('chatUserName', storedName);
+    }
+    setUserName(storedName);
+  }, []);
 
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
   };
 
   useEffect(() => {
+    if (!roomId) return;
+
     const pusher = new Pusher('6a10fce7f61c4c88633b', {
       cluster: 'eu'
     });
@@ -36,8 +56,10 @@ function Chat() {
       const newMsg = payload.message;
 
       setRoomMessages(prevMessages => {
+        // Evita doppioni
         if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
 
+        // Sostituisci messaggio temporaneo con messaggio reale (con _id definitivo)
         const tempIndex = prevMessages.findIndex(m =>
           m._id && m._id.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -89,9 +111,9 @@ function Chat() {
     const newMessage = {
       _id: tempId,
       message: input,
-      name: user?.displayName || "Anonimo",
+      name: userName || "Anonimo",
       timestamp: new Date().toISOString(),
-      uid: user?.uid || "default",
+      uid: userId || "default",
     };
 
     setRoomMessages(prev => [...prev, newMessage]);
@@ -136,6 +158,9 @@ function Chat() {
                 })
               : "Mai"}
           </p>
+          <p style={{ fontSize: '0.8rem', color: '#666' }}>
+            Sei connesso come <b>{userName}</b>
+          </p>
         </div>
       </div>
 
@@ -143,7 +168,7 @@ function Chat() {
         {roomMessages.map((message, index) => {
           const date = new Date(message.timestamp);
           const isValidDate = !isNaN(date);
-          const isOwnMessage = message.uid === user?.uid;
+          const isOwnMessage = message.uid === userId;
 
           return (
             <div
