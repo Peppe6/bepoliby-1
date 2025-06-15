@@ -10,16 +10,19 @@ import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 
+// Prendi base URL dal file .env
+const API_BASE_URL = process.env.REACT_APP_API_URL;
+
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(""); // 🆕 Stato per la ricerca
+  const [searchTerm, setSearchTerm] = useState(""); // stato ricerca
   const [{ user }] = useStateValue();
 
   useEffect(() => {
     const fetchRooms = async () => {
       try {
         console.log("Chiamata GET /api/v1/rooms");
-        const response = await axios.get("/api/v1/rooms");
+        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(response.data);
       } catch (error) {
         console.error("Errore nel caricamento delle stanze:", error);
@@ -30,12 +33,11 @@ const Sidebar = () => {
   }, []);
 
   const createChat = async () => {
-    console.log("createChat chiamato");
     const roomName = prompt("Inserisci un nome per la Chat!");
     if (roomName && roomName.trim()) {
       try {
         console.log("Nome stanza:", roomName.trim());
-        const response = await axios.post("/api/v1/rooms", {
+        const response = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
           name: roomName.trim(),
         });
         console.log("Risposta creazione stanza:", response.data);
@@ -82,10 +84,10 @@ const Sidebar = () => {
         </div>
 
         {rooms
-          .filter((room) =>
+          .filter(room =>
             room.name.toLowerCase().includes(searchTerm.toLowerCase())
           )
-          .map((room) => {
+          .map(room => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
 
@@ -104,7 +106,6 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
 
 
 
