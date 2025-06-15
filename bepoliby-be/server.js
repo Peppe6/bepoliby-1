@@ -1,4 +1,3 @@
-
 const express = require('express');
 const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
@@ -10,7 +9,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Sicurezza CSP aggiornata con https://apis.google.com
+// ✅ Helmet (opzionale, resta per sicurezza generale)
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -20,7 +19,7 @@ app.use(
         "'self'",
         "https://translate.google.com",
         "https://www.gstatic.com",
-        "https://apis.google.com", // ✅ Aggiunto per login Google
+        "https://apis.google.com",
         "'unsafe-inline'",
       ],
       styleSrc: [
@@ -56,6 +55,15 @@ app.use(
     },
   })
 );
+
+// ✅ Forza header CSP manualmente per Render
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://translate.googleapis.com https://translate.google.com https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://translate.googleapis.com https://www.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://www.gstatic.com https://avatars.dicebear.com https://www.gravatar.com https://render-prod-avatars.s3.us-west-2.amazonaws.com; connect-src 'self' wss: https: http://localhost:3000 http://localhost:9000"
+  );
+  next();
+});
 
 // Middleware
 app.use(express.json());
@@ -241,7 +249,7 @@ const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
 
-server.keepAliveTimeout = 120000; // 120s
-server.headersTimeout = 121000;   // 121s
+server.keepAliveTimeout = 120000;
+server.headersTimeout = 121000;
 
 
