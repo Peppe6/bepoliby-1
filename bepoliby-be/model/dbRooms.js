@@ -16,10 +16,15 @@ const roomSchema = new mongoose.Schema({
   lastMessageTimestamp: {
     type: Date,
     default: null
+  },
+  members: {
+    type: [String], // array di UID
+    required: true
   }
 });
 
 module.exports = mongoose.model('Rooms', roomSchema);
+
 
 
 
