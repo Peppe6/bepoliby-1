@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -12,7 +11,6 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 9000;
 
-
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
@@ -20,7 +18,7 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -31,43 +29,14 @@ app.use(cors({
   credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
-}));
+};
 
+// Middleware
+app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
 
-// Preflight OPTIONS manuale (utile se cors non copre tutto)
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
-
-// Endpoint ricezione dati da sito esterno
-app.post('/api/ricevi-dati', (req, res) => {
-  const { id, username, nome, token } = req.body;
-
-  // Qui puoi verificare il token JWT se vuoi, per sicurezza
-  // es: jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => { ... })
-
-  console.log("✅ Dati ricevuti:", { id, username, nome });
-
-  // Logica di salvataggio o altro...
-
-  res.status(200).json({ message: "Dati ricevuti correttamente" });
-});
-
-app.listen(port, () => {
-  console.log(`✅ Server avviato su http://localhost:${port}`);
-});
-
-// 🛡 Helmet CSP
+// Helmet CSP
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -109,15 +78,26 @@ app.use(
         "https:",
         "http://localhost:3000",
         "http://localhost:9000",
+        "wss://ws-eu.pusher.com"
       ],
     },
   })
 );
 
-// 📦 JSON parser
-app.use(express.json());
+// Preflight manuale (opzionale, ma utile)
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
-// 🔐 JWT Middleware
+// Middleware di autenticazione JWT
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -130,33 +110,29 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// 📥 API da dominio esterno
-app.options("/api/ricevi-dati", cors(corsOptions));
-app.post("/api/ricevi-dati", cors(corsOptions), (req, res) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Token mancante" });
-  }
+// Endpoint ricezione dati da sito esterno (senza autenticazione qui, oppure aggiungila se serve)
+app.post('/api/ricevi-dati', (req, res) => {
+  const { id, username, nome, token } = req.body;
 
-  const token = authHeader.split(" ")[1];
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("✅ Dati ricevuti da dominio esterno:", decoded);
-    return res.status(200).json({ ricevuto: true, utente: decoded });
-  } catch (error) {
-    return res.status(403).json({ message: "Token non valido", error: error.message });
-  }
+  // Qui puoi verificare il token JWT se vuoi, per sicurezza
+  // es: jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => { ... })
+
+  console.log("✅ Dati ricevuti:", { id, username, nome });
+
+  // Logica di salvataggio o altro...
+
+  res.status(200).json({ message: "Dati ricevuti correttamente" });
 });
 
-// 🔌 MongoDB
+// MongoDB Connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+.then(() => console.log("✅ MongoDB connected"))
+.catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// 🔁 ChangeStream
+// ChangeStream per notifiche realtime con Pusher
 const db = mongoose.connection;
 db.once("open", () => {
   console.log("📡 DB connesso");
@@ -182,7 +158,7 @@ db.once("open", () => {
   });
 });
 
-// 📡 Pusher
+// Pusher setup
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -191,7 +167,8 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// 📁 API rooms/messages
+// API endpoints per rooms e messaggi
+
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
@@ -240,7 +217,7 @@ app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
   res.status(201).json(dbMessage);
 });
 
-// 🎯 Serve React frontend in produzione
+// Serve React frontend in produzione
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
   app.get("*", (req, res) => {
@@ -248,11 +225,11 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// 🔥 Error handling
+// Error handling globale
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 process.on("unhandledRejection", err => console.error("❌ Unhandled Rejection:", err));
 
-// 🚀 Start
+// Avvio server
 const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
