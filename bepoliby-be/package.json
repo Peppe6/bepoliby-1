@@ -18,13 +18,14 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
- "dependencies": {
-  "cors": "^2.8.5",
-  "express": "^4.18.2",
-  "helmet": "^8.1.0",
-  "mongoose": "^8.15.1",
-  "nodemon": "^3.1.10",
-  "pusher": "^5.2.0"
-}
-
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.2",
+    "helmet": "^8.1.0",
+    "jwt-decode": "^4.0.0",
+    "mongoose": "^8.15.1",
+    "nodemon": "^3.1.10",
+    "pusher": "^5.2.0"
+  }
 }
