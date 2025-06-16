@@ -12,7 +12,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Origini consentite
+
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
@@ -20,33 +20,51 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
-// ✅ CORS
-const corsOptions = {
+app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, origin);
+      callback(null, true);
     } else {
-      callback(new Error(`Origin ${origin} non permessa dal CORS`));
+      callback(new Error("Origin non consentita: " + origin));
     }
   },
+  credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
-};
+}));
 
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.use(helmet());
+app.use(express.json());
 
-// ✅ Preflight CORS manuale
+// Preflight OPTIONS manuale (utile se cors non copre tutto)
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
   }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Access-Control-Allow-Credentials", "true");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
+});
+
+// Endpoint ricezione dati da sito esterno
+app.post('/api/ricevi-dati', (req, res) => {
+  const { id, username, nome, token } = req.body;
+
+  // Qui puoi verificare il token JWT se vuoi, per sicurezza
+  // es: jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => { ... })
+
+  console.log("✅ Dati ricevuti:", { id, username, nome });
+
+  // Logica di salvataggio o altro...
+
+  res.status(200).json({ message: "Dati ricevuti correttamente" });
+});
+
+app.listen(port, () => {
+  console.log(`✅ Server avviato su http://localhost:${port}`);
 });
 
 // 🛡 Helmet CSP
