@@ -12,7 +12,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// 🌍 Lista domini frontend autorizzati
+// ✅ Origini consentite
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
@@ -20,7 +20,7 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
-// 🌐 CORS automatico
+// ✅ CORS
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -32,10 +32,11 @@ const corsOptions = {
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 };
+
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
-// 🔐 Fix CORS manuale per il preflight OPTIONS
+// ✅ Preflight CORS manuale
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -48,7 +49,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🛡 Helmet con Content-Security-Policy
+// 🛡 Helmet CSP
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -95,10 +96,10 @@ app.use(
   })
 );
 
-// 📦 JSON body parser
+// 📦 JSON parser
 app.use(express.json());
 
-// 🔐 Middleware JWT
+// 🔐 JWT Middleware
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -111,8 +112,9 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// 🔗 API che riceve dati da dominio esterno
-app.post("/api/ricevi-dati", (req, res) => {
+// 📥 API da dominio esterno
+app.options("/api/ricevi-dati", cors(corsOptions));
+app.post("/api/ricevi-dati", cors(corsOptions), (req, res) => {
   const authHeader = req.headers['authorization'];
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res.status(401).json({ message: "Token mancante" });
@@ -128,19 +130,18 @@ app.post("/api/ricevi-dati", (req, res) => {
   }
 });
 
-// 🔌 Connessione MongoDB
+// 🔌 MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log("✅ MongoDB connected successfully"))
+  .then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// 🔁 ChangeStream per Pusher
+// 🔁 ChangeStream
 const db = mongoose.connection;
 db.once("open", () => {
-  console.log("📡 Database connesso");
-
+  console.log("📡 DB connesso");
   const roomCollection = db.collection("rooms");
   const changeStream = roomCollection.watch();
 
@@ -163,7 +164,7 @@ db.once("open", () => {
   });
 });
 
-// 🔔 Pusher config
+// 📡 Pusher
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -172,14 +173,12 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// 🌐 ROUTE API
-app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva sulla root"));
-app.get("/api", (req, res) => res.send("🎉 Benvenuto sul Server"));
+// 📁 API rooms/messages
+app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
+app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
-// 📁 API CRUD Rooms e Messaggi
 app.get("/api/v1/rooms", authenticateToken, async (req, res) => {
-  const userUid = req.user.uid;
-  const data = await Rooms.find({ members: userUid }).sort({ lastMessageTimestamp: -1 });
+  const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
   res.status(200).send(data);
 });
 
@@ -193,30 +192,27 @@ app.post("/api/v1/rooms", authenticateToken, async (req, res) => {
 });
 
 app.get("/api/v1/rooms/:id", authenticateToken, async (req, res) => {
-  const userUid = req.user.uid;
   const room = await Rooms.findById(req.params.id);
   if (!room) return res.status(404).json({ message: "Room not found" });
-  if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied" });
+  if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
   res.status(200).json(room);
 });
 
 app.get("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
-  const userUid = req.user.uid;
   const room = await Rooms.findById(req.params.id);
   if (!room) return res.status(404).json({ message: "Room not found" });
-  if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied" });
+  if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
   res.status(200).json(room.messages || []);
 });
 
 app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
-  const userUid = req.user.uid;
   const dbMessage = req.body;
+  if (req.user.uid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
   dbMessage.timestamp = new Date(dbMessage.timestamp);
-  if (userUid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
 
   const room = await Rooms.findById(req.params.id);
   if (!room) return res.status(404).json({ message: "Room not found" });
-  if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied" });
+  if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
 
   room.messages.push(dbMessage);
   room.lastMessageTimestamp = dbMessage.timestamp;
@@ -226,7 +222,7 @@ app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
   res.status(201).json(dbMessage);
 });
 
-// 🧱 Serve frontend build (solo in produzione)
+// 🎯 Serve React frontend in produzione
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
   app.get("*", (req, res) => {
@@ -234,11 +230,11 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// 🧯 Gestione errori
+// 🔥 Error handling
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 process.on("unhandledRejection", err => console.error("❌ Unhandled Rejection:", err));
 
-// 🚀 Avvio server
+// 🚀 Start
 const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
