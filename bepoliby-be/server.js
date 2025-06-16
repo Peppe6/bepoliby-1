@@ -1,6 +1,7 @@
+
 const express = require('express');
 const mongoose = require('mongoose');
-const Rooms = require('./model/dbRooms');
+const Rooms = require('./model/dbRooms'); // <-- modello aggiornato con campo members
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,7 +10,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// Helmet con Content Security Policy configurata per includere apis.google.com
+// Helmet con Content Security Policy
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -56,18 +57,11 @@ app.use(
   })
 );
 
-// **RIMUOVI** il middleware che imposta manualmente l'header CSP per evitare conflitti
-// app.use((req, res, next) => {
-//   res.setHeader("Content-Security-Policy", "...");
-//   next();
-// });
-
 app.use(express.json());
 app.use(cors());
 
-// Connessione a MongoDB
-const connectionDbUrl =
-  "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
+// Connessione MongoDB
+const connectionDbUrl = "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose
   .connect(connectionDbUrl, {
@@ -88,20 +82,16 @@ db.once("open", () => {
     if (change.operationType === "update") {
       const updatedFields = change.updateDescription.updatedFields;
 
-      if (
-        updatedFields &&
-        Object.keys(updatedFields).some((key) => key.startsWith("messages"))
-      ) {
+      if (updatedFields && Object.keys(updatedFields).some((key) => key.startsWith("messages"))) {
         console.log("🟢 Nuovo messaggio rilevato");
 
         const roomId = change.documentKey._id.toString();
 
         try {
           const room = await Rooms.findById(roomId);
-          const lastMessage =
-            room.messages.length > 0
-              ? room.messages[room.messages.length - 1]
-              : null;
+          const lastMessage = room.messages.length > 0
+            ? room.messages[room.messages.length - 1]
+            : null;
 
           if (lastMessage) {
             PusherClient.trigger(`room_${roomId}`, "inserted", {
@@ -139,21 +129,36 @@ app.get("/api", (req, res) => {
   res.status(200).send("🎉 Benvenuto sul Server");
 });
 
+// ✅ GET: stanze dell'utente loggato
 app.get("/api/v1/rooms", async (req, res) => {
+  const userUid = req.headers["x-user-uid"];
+
+  if (!userUid) {
+    return res.status(401).json({ error: "Missing user UID" });
+  }
+
   try {
-    const data = await Rooms.find().sort({ lastMessageTimestamp: -1 });
+    const data = await Rooms.find({ members: userUid }).sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
   } catch (err) {
     res.status(500).send(err);
   }
 });
 
+// ✅ POST: crea stanza con membri
 app.post("/api/v1/rooms", async (req, res) => {
   try {
     console.log("📥 Richiesta creazione stanza:", req.body);
 
+    const { name, members } = req.body;
+
+    if (!name || !Array.isArray(members) || members.length === 0) {
+      return res.status(400).json({ error: "Missing room name or members array" });
+    }
+
     const roomData = {
-      name: req.body.name,
+      name,
+      members,
       messages: [],
       lastMessageTimestamp: null,
     };
@@ -166,12 +171,20 @@ app.post("/api/v1/rooms", async (req, res) => {
   }
 });
 
+// ✅ GET: stanza per ID se utente è membro
 app.get("/api/v1/rooms/:id", async (req, res) => {
+  const userUid = req.headers["x-user-uid"];
+
+  if (!userUid) {
+    return res.status(401).json({ error: "Missing user UID" });
+  }
+
   try {
     const room = await Rooms.findById(req.params.id);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
+
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied to this room" });
+
     res.status(200).json(room);
   } catch (err) {
     console.error("❌ Errore durante il recupero della stanza:", err);
@@ -179,12 +192,20 @@ app.get("/api/v1/rooms/:id", async (req, res) => {
   }
 });
 
+// ✅ GET: messaggi della stanza solo se utente è membro
 app.get("/api/v1/rooms/:id/messages", async (req, res) => {
+  const userUid = req.headers["x-user-uid"];
+
+  if (!userUid) {
+    return res.status(401).json({ error: "Missing user UID" });
+  }
+
   try {
     const room = await Rooms.findById(req.params.id);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
+
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied to this room's messages" });
+
     res.status(200).json(room.messages || []);
   } catch (err) {
     console.error("❌ Errore nel recupero dei messaggi:", err);
@@ -192,17 +213,22 @@ app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
+// ✅ POST: nuovo messaggio nella stanza se utente è membro
 app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   const roomId = req.params.id;
   const dbMessage = req.body;
+  const userUid = dbMessage.uid;
+
+  if (!userUid) {
+    return res.status(401).json({ error: "Missing user UID in message" });
+  }
 
   dbMessage.timestamp = new Date(dbMessage.timestamp);
 
   try {
     const room = await Rooms.findById(roomId);
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied to this room" });
 
     room.messages.push(dbMessage);
     room.lastMessageTimestamp = dbMessage.timestamp;
@@ -220,10 +246,9 @@ app.post("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// Serve React build in production
+// Serve React build in produzione
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
-
   app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "../bepoliby-fe/build", "index.html"));
   });
