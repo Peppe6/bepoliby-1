@@ -1,14 +1,29 @@
 
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const Rooms = require('./model/dbRooms'); // <-- modello aggiornato con campo members
+const Rooms = require('./model/dbRooms'); // schema stanze
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = process.env.PORT || 9000;
+
+// Middleware per autenticazione token JWT
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: "Token mancante" });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Token non valido" });
+    req.user = user; // es: { uid, username, ... }
+    next();
+  });
+}
 
 // Helmet con Content Security Policy
 app.use(
@@ -60,11 +75,9 @@ app.use(
 app.use(express.json());
 app.use(cors());
 
-// Connessione MongoDB
-const connectionDbUrl = "mongodb+srv://drankenstain:RzdXh55Ie1KzQ2wo@cluster0.rcldbiz.mongodb.net/bepoliby?retryWrites=true&w=majority&appName=Cluster0";
-
+// Connessione a MongoDB
 mongoose
-  .connect(connectionDbUrl, {
+  .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -113,14 +126,14 @@ db.once("open", () => {
 
 // Config Pusher
 const PusherClient = new Pusher({
-  appId: "1999725",
-  key: "6a10fce7f61c4c88633b",
-  secret: "cb00372865ac43a1e9e8",
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
   cluster: "eu",
   useTLS: true,
 });
 
-// Rotte API
+// Rotte pubbliche
 app.get("/", (req, res) => {
   res.status(200).send("🌐 API Bepoliby attiva sulla root");
 });
@@ -129,14 +142,9 @@ app.get("/api", (req, res) => {
   res.status(200).send("🎉 Benvenuto sul Server");
 });
 
-// ✅ GET: stanze dell'utente loggato
-app.get("/api/v1/rooms", async (req, res) => {
-  const userUid = req.headers["x-user-uid"];
-
-  if (!userUid) {
-    return res.status(401).json({ error: "Missing user UID" });
-  }
-
+// Rotte protette: richiedono token valido
+app.get("/api/v1/rooms", authenticateToken, async (req, res) => {
+  const userUid = req.user.uid;
   try {
     const data = await Rooms.find({ members: userUid }).sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
@@ -145,15 +153,17 @@ app.get("/api/v1/rooms", async (req, res) => {
   }
 });
 
-// ✅ POST: crea stanza con membri
-app.post("/api/v1/rooms", async (req, res) => {
+app.post("/api/v1/rooms", authenticateToken, async (req, res) => {
   try {
-    console.log("📥 Richiesta creazione stanza:", req.body);
-
     const { name, members } = req.body;
 
     if (!name || !Array.isArray(members) || members.length === 0) {
       return res.status(400).json({ error: "Missing room name or members array" });
+    }
+
+    // Assicurati che il creator sia incluso tra i membri
+    if (!members.includes(req.user.uid)) {
+      members.push(req.user.uid);
     }
 
     const roomData = {
@@ -171,14 +181,8 @@ app.post("/api/v1/rooms", async (req, res) => {
   }
 });
 
-// ✅ GET: stanza per ID se utente è membro
-app.get("/api/v1/rooms/:id", async (req, res) => {
-  const userUid = req.headers["x-user-uid"];
-
-  if (!userUid) {
-    return res.status(401).json({ error: "Missing user UID" });
-  }
-
+app.get("/api/v1/rooms/:id", authenticateToken, async (req, res) => {
+  const userUid = req.user.uid;
   try {
     const room = await Rooms.findById(req.params.id);
 
@@ -192,14 +196,8 @@ app.get("/api/v1/rooms/:id", async (req, res) => {
   }
 });
 
-// ✅ GET: messaggi della stanza solo se utente è membro
-app.get("/api/v1/rooms/:id/messages", async (req, res) => {
-  const userUid = req.headers["x-user-uid"];
-
-  if (!userUid) {
-    return res.status(401).json({ error: "Missing user UID" });
-  }
-
+app.get("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
+  const userUid = req.user.uid;
   try {
     const room = await Rooms.findById(req.params.id);
 
@@ -213,14 +211,13 @@ app.get("/api/v1/rooms/:id/messages", async (req, res) => {
   }
 });
 
-// ✅ POST: nuovo messaggio nella stanza se utente è membro
-app.post("/api/v1/rooms/:id/messages", async (req, res) => {
+app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
   const roomId = req.params.id;
   const dbMessage = req.body;
-  const userUid = dbMessage.uid;
+  const userUid = req.user.uid;
 
-  if (!userUid) {
-    return res.status(401).json({ error: "Missing user UID in message" });
+  if (userUid !== dbMessage.uid) {
+    return res.status(403).json({ message: "UID mismatch" });
   }
 
   dbMessage.timestamp = new Date(dbMessage.timestamp);
