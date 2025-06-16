@@ -28,8 +28,48 @@
     <title>React App</title>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    
     <div id="root"></div>
+<script>
+window.addEventListener("message", async (event) => {
+  if (event.origin !== "https://bepoli.onrender.com") {
+    console.warn("Origine non autorizzata:", event.origin);
+    return;
+  }
+
+  const { type, dati } = event.data;
+  if (type === "inviaDatiUtente") {
+    console.log("✅ Dati ricevuti:", dati);
+    document.getElementById("output").innerText =
+      `ID: ${dati.id}, Username: ${dati.username}, Nome: ${dati.nome}`;
+
+    // Se vuoi salvare nel backend:
+    try {
+      const res = await fetch("/api/ricevi-dati", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${dati.token}`
+        },
+        body: JSON.stringify(dati)
+      });
+
+      if (res.ok) {
+        console.log("✅ Dati salvati sul backend.");
+      } else {
+        console.error("❌ Errore salvataggio:", await res.text());
+      }
+    } catch (err) {
+      console.error("❌ Errore fetch:", err);
+    }
+  }
+});
+</script>
+
+
+
+
+
   </body>
 </html>
 
