@@ -1,3 +1,8 @@
+
+
+
+
+
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -6,6 +11,7 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import Pusher from 'pusher-js';
 import EmojiPicker from 'emoji-picker-react';
+import jwtDecode from 'jwt-decode';
 
 function Chat() {
   const { roomId } = useParams();
@@ -21,21 +27,23 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
-  // Recupera o genera userId e userName persistenti nel localStorage
+  // Recupera userId e userName dal token JWT salvato in localStorage
   useEffect(() => {
-    let storedId = localStorage.getItem('chatUserId');
-    if (!storedId) {
-      storedId = 'user-' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('chatUserId', storedId);
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setUserId(decoded.uid);       // Assumi che il token abbia il campo uid
+        setUserName(decoded.username); // Assumi che il token abbia il campo username
+      } catch (error) {
+        console.warn("Token non valido:", error);
+        setUserId(null);
+        setUserName(null);
+      }
+    } else {
+      setUserId(null);
+      setUserName(null);
     }
-    setUserId(storedId);
-
-    let storedName = localStorage.getItem('chatUserName');
-    if (!storedName) {
-      storedName = 'Anonimo-' + Math.floor(Math.random() * 1000);
-      localStorage.setItem('chatUserName', storedName);
-    }
-    setUserName(storedName);
   }, []);
 
   const onEmojiClick = (emojiData) => {
@@ -56,10 +64,8 @@ function Chat() {
       const newMsg = payload.message;
 
       setRoomMessages(prevMessages => {
-        // Evita doppioni
         if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
 
-        // Sostituisci messaggio temporaneo con quello reale
         const tempIndex = prevMessages.findIndex(m =>
           m._id && m._id.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -87,8 +93,12 @@ function Chat() {
   // Fetch dati stanza e messaggi con header x-user-uid
   useEffect(() => {
     const fetchRoomData = async () => {
+      if (!userId) {
+        navigate("/");
+        return;
+      }
       try {
-        const headers = { 'x-user-uid': userId || '' };
+        const headers = { 'x-user-uid': userId };
         const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`, { headers });
         setRoomName(roomRes.data.name);
 
@@ -102,13 +112,13 @@ function Chat() {
       }
     };
 
-    if (roomId) fetchRoomData();
+    if (roomId && userId) fetchRoomData();
   }, [roomId, navigate, apiUrl, userId]);
 
   // Invio messaggio con header x-user-uid e gestione messaggio temporaneo
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || !userId) return;
 
     const tempId = `temp-${Date.now()}`;
     const newMessage = {
@@ -116,7 +126,7 @@ function Chat() {
       message: input,
       name: userName || "Anonimo",
       timestamp: new Date().toISOString(),
-      uid: userId || "default",
+      uid: userId,
     };
 
     setRoomMessages(prev => [...prev, newMessage]);
@@ -130,7 +140,7 @@ function Chat() {
         uid: newMessage.uid,
       }, {
         headers: {
-          'x-user-uid': userId || ''
+          'x-user-uid': userId
         }
       });
     } catch (error) {
@@ -166,7 +176,7 @@ function Chat() {
               : "Mai"}
           </p>
           <p style={{ fontSize: '0.8rem', color: '#666' }}>
-            Sei connesso come <b>{userName}</b>
+            Sei connesso come <b>{userName || "Anonimo"}</b>
           </p>
         </div>
       </div>
@@ -242,10 +252,6 @@ function Chat() {
 }
 
 export default Chat;
-
-
-
-
 
 
 
