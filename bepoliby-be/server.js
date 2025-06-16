@@ -25,6 +25,57 @@ function authenticateToken(req, res, next) {
   });
 }
 
+//PER RICEVERE I DATI
+app.use(cors({
+  origin: "https://bepoli.onrender.com",
+  methods: ["POST"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
+
+
+
+// Endpoint per ricevere dati da bepoli.onrender.com
+app.post("/api/ricevi-dati", (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Token mancante" });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    console.log("✅ Dati ricevuti da bepoli.onrender.com:");
+    console.log("ID:", decoded.id);
+    console.log("Username:", decoded.username);
+    console.log("Nome:", decoded.nome);
+
+    // Puoi salvare o elaborare i dati utente qui se vuoi
+
+    return res.status(200).json({ ricevuto: true, utente: decoded });
+  } catch (error) {
+    return res.status(403).json({ message: "Token non valido", error: error.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // Helmet con Content Security Policy
 app.use(
   helmet.contentSecurityPolicy({
