@@ -2,7 +2,7 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
-const Rooms = require('./model/dbRooms'); // schema stanze
+const Rooms = require('./model/dbRooms');
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -12,66 +12,14 @@ const jwt = require('jsonwebtoken');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// Middleware per autenticazione token JWT
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: "Token mancante" });
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: "Token non valido" });
-    req.user = user; // es: { uid, username, ... }
-    next();
-  });
-}
-
-
-
-
-//RICEVEDATI
-app.use(cors({
+const corsOptions = {
   origin: "https://bepoli.onrender.com",
   methods: ["POST"],
   allowedHeaders: ["Content-Type", "Authorization"]
-}));
+};
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
-// Endpoint per ricevere dati da bepoli.onrender.com
-app.post("/api/ricevi-dati", (req, res) => {
-  const authHeader = req.headers['authorization'];
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Token mancante" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    console.log("✅ Dati ricevuti da bepoli.onrender.com:");
-    console.log("ID:", decoded.id);
-    console.log("Username:", decoded.username);
-    console.log("Nome:", decoded.nome);
-
-    // Puoi salvare o elaborare i dati utente qui se vuoi
-
-    return res.status(200).json({ ricevuto: true, utente: decoded });
-  } catch (error) {
-    return res.status(403).json({ message: "Token non valido", error: error.message });
-  }
-});
-
-
-
-
-
-
-
-
-
-
-
-
-// Helmet con Content Security Policy
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -119,9 +67,36 @@ app.use(
 );
 
 app.use(express.json());
-app.use(cors());
 
-// Connessione a MongoDB
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: "Token mancante" });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: "Token non valido" });
+    req.user = user;
+    next();
+  });
+}
+
+app.post("/api/ricevi-dati", (req, res) => {
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Token mancante" });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("✅ Dati ricevuti da bepoli.onrender.com:", decoded);
+    return res.status(200).json({ ricevuto: true, utente: decoded });
+  } catch (error) {
+    return res.status(403).json({ message: "Token non valido", error: error.message });
+  }
+});
+
 mongoose
   .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
@@ -133,7 +108,6 @@ mongoose
 const db = mongoose.connection;
 db.once("open", () => {
   console.log("📡 Database connesso");
-
   const roomCollection = db.collection("rooms");
   const changeStream = roomCollection.watch();
 
@@ -143,14 +117,11 @@ db.once("open", () => {
 
       if (updatedFields && Object.keys(updatedFields).some((key) => key.startsWith("messages"))) {
         console.log("🟢 Nuovo messaggio rilevato");
-
         const roomId = change.documentKey._id.toString();
 
         try {
           const room = await Rooms.findById(roomId);
-          const lastMessage = room.messages.length > 0
-            ? room.messages[room.messages.length - 1]
-            : null;
+          const lastMessage = room.messages.at(-1);
 
           if (lastMessage) {
             PusherClient.trigger(`room_${roomId}`, "inserted", {
@@ -170,7 +141,6 @@ db.once("open", () => {
   });
 });
 
-// Config Pusher
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -179,7 +149,6 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// Rotte pubbliche
 app.get("/", (req, res) => {
   res.status(200).send("🌐 API Bepoliby attiva sulla root");
 });
@@ -188,7 +157,6 @@ app.get("/api", (req, res) => {
   res.status(200).send("🎉 Benvenuto sul Server");
 });
 
-// Rotte protette: richiedono token valido
 app.get("/api/v1/rooms", authenticateToken, async (req, res) => {
   const userUid = req.user.uid;
   try {
@@ -202,15 +170,10 @@ app.get("/api/v1/rooms", authenticateToken, async (req, res) => {
 app.post("/api/v1/rooms", authenticateToken, async (req, res) => {
   try {
     const { name, members } = req.body;
-
     if (!name || !Array.isArray(members) || members.length === 0) {
       return res.status(400).json({ error: "Missing room name or members array" });
     }
-
-    // Assicurati che il creator sia incluso tra i membri
-    if (!members.includes(req.user.uid)) {
-      members.push(req.user.uid);
-    }
+    if (!members.includes(req.user.uid)) members.push(req.user.uid);
 
     const roomData = {
       name,
@@ -222,7 +185,6 @@ app.post("/api/v1/rooms", authenticateToken, async (req, res) => {
     const data = await Rooms.create(roomData);
     res.status(201).send(data);
   } catch (err) {
-    console.error("❌ Errore creazione stanza:", err);
     res.status(500).send(err);
   }
 });
@@ -231,13 +193,10 @@ app.get("/api/v1/rooms/:id", authenticateToken, async (req, res) => {
   const userUid = req.user.uid;
   try {
     const room = await Rooms.findById(req.params.id);
-
     if (!room) return res.status(404).json({ message: "Room not found" });
-    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied to this room" });
-
+    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied" });
     res.status(200).json(room);
   } catch (err) {
-    console.error("❌ Errore durante il recupero della stanza:", err);
     res.status(500).json({ message: "Errore nel recupero della stanza" });
   }
 });
@@ -246,13 +205,10 @@ app.get("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
   const userUid = req.user.uid;
   try {
     const room = await Rooms.findById(req.params.id);
-
     if (!room) return res.status(404).json({ message: "Room not found" });
-    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied to this room's messages" });
-
+    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied" });
     res.status(200).json(room.messages || []);
   } catch (err) {
-    console.error("❌ Errore nel recupero dei messaggi:", err);
     res.status(500).json({ message: "Errore nel recupero dei messaggi" });
   }
 });
@@ -262,34 +218,29 @@ app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
   const dbMessage = req.body;
   const userUid = req.user.uid;
 
-  if (userUid !== dbMessage.uid) {
-    return res.status(403).json({ message: "UID mismatch" });
-  }
-
+  if (userUid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
   dbMessage.timestamp = new Date(dbMessage.timestamp);
 
   try {
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ message: "Room not found" });
-    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied to this room" });
+    if (!room.members.includes(userUid)) return res.status(403).json({ message: "Access denied" });
 
     room.messages.push(dbMessage);
     room.lastMessageTimestamp = dbMessage.timestamp;
     await room.save();
 
     PusherClient.trigger(`room_${roomId}`, "inserted", {
-      roomId: roomId,
+      roomId,
       message: dbMessage,
     });
 
     res.status(201).json(dbMessage);
   } catch (err) {
-    console.error("❌ Errore POST /rooms/:id/messages:", err);
     res.status(500).json({ message: "Errore nel salvataggio del messaggio" });
   }
 });
 
-// Serve React build in produzione
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
   app.get("*", (req, res) => {
@@ -297,7 +248,6 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Gestione errori globali
 process.on("uncaughtException", (err) => {
   console.error("❌ Uncaught Exception:", err);
 });
@@ -306,13 +256,10 @@ process.on("unhandledRejection", (err) => {
   console.error("❌ Unhandled Rejection:", err);
 });
 
-// Avvio server
 const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
 
 server.keepAliveTimeout = 120000;
 server.headersTimeout = 121000;
-
-
 
