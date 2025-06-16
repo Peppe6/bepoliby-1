@@ -15,14 +15,18 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(""); // stato ricerca
+  const [searchTerm, setSearchTerm] = useState("");
   const [{ user }] = useStateValue();
 
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        console.log("Chiamata GET /api/v1/rooms");
-        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
+        console.log("Chiamata GET /api/v1/rooms con filtro utente");
+        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
+          headers: {
+            'x-user-uid': user?.uid || ''
+          }
+        });
         setRooms(response.data);
       } catch (error) {
         console.error("Errore nel caricamento delle stanze:", error);
@@ -30,7 +34,7 @@ const Sidebar = () => {
     };
 
     fetchRooms();
-  }, []);
+  }, [user?.uid]);
 
   const createChat = async () => {
     const roomName = prompt("Inserisci un nome per la Chat!");
@@ -39,6 +43,10 @@ const Sidebar = () => {
         console.log("Nome stanza:", roomName.trim());
         const response = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
           name: roomName.trim(),
+        }, {
+          headers: {
+            'x-user-uid': user?.uid || ''
+          }
         });
         console.log("Risposta creazione stanza:", response.data);
         setRooms(prev => [...prev, response.data]);
