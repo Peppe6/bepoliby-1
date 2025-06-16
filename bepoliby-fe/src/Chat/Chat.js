@@ -11,7 +11,8 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import Pusher from 'pusher-js';
 import EmojiPicker from 'emoji-picker-react';
-import jwtDecode from 'jwt-decode';
+ import { jwtDecode } from 'jwt-decode';
+ ;
 
 function Chat() {
   const { roomId } = useParams();
