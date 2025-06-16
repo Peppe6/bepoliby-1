@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -22,7 +21,7 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
-  // Genera o recupera userId e userName persistenti dal localStorage
+  // Recupera o genera userId e userName persistenti nel localStorage
   useEffect(() => {
     let storedId = localStorage.getItem('chatUserId');
     if (!storedId) {
@@ -43,6 +42,7 @@ function Chat() {
     setInput(prev => prev + emojiData.emoji);
   };
 
+  // Pusher per aggiornamenti in real-time messaggi
   useEffect(() => {
     if (!roomId) return;
 
@@ -59,7 +59,7 @@ function Chat() {
         // Evita doppioni
         if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
 
-        // Sostituisci messaggio temporaneo con messaggio reale (con _id definitivo)
+        // Sostituisci messaggio temporaneo con quello reale
         const tempIndex = prevMessages.findIndex(m =>
           m._id && m._id.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -84,13 +84,15 @@ function Chat() {
     };
   }, [roomId]);
 
+  // Fetch dati stanza e messaggi con header x-user-uid
   useEffect(() => {
     const fetchRoomData = async () => {
       try {
-        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
+        const headers = { 'x-user-uid': userId || '' };
+        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`, { headers });
         setRoomName(roomRes.data.name);
 
-        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`);
+        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`, { headers });
         setRoomMessages(messagesRes.data);
 
         const lastMsg = messagesRes.data[messagesRes.data.length - 1];
@@ -101,8 +103,9 @@ function Chat() {
     };
 
     if (roomId) fetchRoomData();
-  }, [roomId, navigate, apiUrl]);
+  }, [roomId, navigate, apiUrl, userId]);
 
+  // Invio messaggio con header x-user-uid e gestione messaggio temporaneo
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -125,6 +128,10 @@ function Chat() {
         name: newMessage.name,
         timestamp: newMessage.timestamp,
         uid: newMessage.uid,
+      }, {
+        headers: {
+          'x-user-uid': userId || ''
+        }
       });
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
@@ -235,6 +242,7 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
 
