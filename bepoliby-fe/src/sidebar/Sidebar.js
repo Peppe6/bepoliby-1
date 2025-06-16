@@ -21,20 +21,28 @@ const Sidebar = () => {
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        console.log("Chiamata GET /api/v1/rooms con filtro utente");
+        console.log("Chiamata GET /api/v1/rooms con filtro utente e token");
         const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
           headers: {
-            'x-user-uid': user?.uid || ''
+            Authorization: `Bearer ${user?.token || ''}`
           }
         });
         setRooms(response.data);
       } catch (error) {
-        console.error("Errore nel caricamento delle stanze:", error);
+        if (error.response) {
+          console.error("Errore nel caricamento delle stanze:", error.response.status, error.response.data);
+        } else {
+          console.error("Errore nel caricamento delle stanze:", error.message);
+        }
       }
     };
 
-    fetchRooms();
-  }, [user?.uid]);
+    if (user?.token) {
+      fetchRooms();
+    } else {
+      console.log("Token utente non disponibile, non carico le stanze");
+    }
+  }, [user?.token]);
 
   const createChat = async () => {
     const roomName = prompt("Inserisci un nome per la Chat!");
@@ -45,13 +53,17 @@ const Sidebar = () => {
           name: roomName.trim(),
         }, {
           headers: {
-            'x-user-uid': user?.uid || ''
+            Authorization: `Bearer ${user?.token || ''}`
           }
         });
         console.log("Risposta creazione stanza:", response.data);
         setRooms(prev => [...prev, response.data]);
       } catch (error) {
-        console.error("Errore nella creazione della stanza:", error);
+        if (error.response) {
+          console.error("Errore nella creazione della stanza:", error.response.status, error.response.data);
+        } else {
+          console.error("Errore nella creazione della stanza:", error.message);
+        }
       }
     } else {
       console.log("Creazione stanza annullata o nome non valido");
