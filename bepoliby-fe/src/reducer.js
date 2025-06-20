@@ -1,5 +1,5 @@
-
-import { loadFromLocalStorage } from "./localStore";
+// reducer.js
+import { loadFromLocalStorage, saveToLocalStorage } from "./localStore";
 
 export const initialState = {
   user: loadFromLocalStorage("user") || null,
@@ -10,10 +10,11 @@ export const actionTypes = {
 };
 
 const reducer = (state, action) => {
-  console.log(action);
+  console.log("Dispatch action:", action);
 
   switch (action.type) {
     case actionTypes.SET_USER:
+      saveToLocalStorage("user", action.user); // salva su localStorage
       return {
         ...state,
         user: action.user,
