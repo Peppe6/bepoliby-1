@@ -6,11 +6,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
-
-
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+import { jwtDecode } from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -35,38 +31,61 @@ function InfoCenter() {
 function App() {
   const [, dispatch] = useStateValue();
 
+  // 1️⃣ Recupera i dati da sessionStorage (se già presenti)
   useEffect(() => {
-    const fetchTokenAndUser = async () => {
+    const token = sessionStorage.getItem("token");
+
+    if (typeof token === "string" && token.trim() !== "") {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/auth-token`, {
-          withCredentials: true, // importante per inviare cookie di sessione
-        });
-
-        const token = res.data.token;
-        sessionStorage.setItem("token", token);
-
-        // Decodifica il token per ottenere dati utente
         const decoded = jwtDecode(token);
-
         dispatch({
           type: "SET_USER",
           user: {
             uid: decoded.id,
             nome: decoded.nome,
-            username: decoded.username,
+            username: decoded.username
           },
+          token: token
         });
-
-        // Imposta default header Authorization per tutte le richieste axios
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       } catch (err) {
-        console.warn("Utente non autenticato o token non disponibile:", err);
-        sessionStorage.removeItem("token");
-        dispatch({ type: "SET_USER", user: null });
+        console.error("❌ Token JWT non valido:", err);
+      }
+    } else {
+      console.warn("⚠️ Nessun token trovato in sessionStorage.");
+    }
+  }, [dispatch]);
+
+  // 2️⃣ Riceve dati utente da bepoli.onrender.com (via postMessage)
+  useEffect(() => {
+    const riceviDatiDaBepoli = (event) => {
+      if (event.origin !== "https://bepoli.onrender.com") return;
+
+      const { id, username, nome, token } = event.data;
+
+      if (id && username && nome && token) {
+        console.log("✅ Dati ricevuti:", event.data);
+
+        // Salva nel sessionStorage
+        sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
+        sessionStorage.setItem("token", token);
+
+        // Aggiorna lo stato globale
+        dispatch({
+          type: "SET_USER",
+          user: {
+            uid: id,
+            nome: nome,
+            username: username
+          },
+          token: token
+        });
+      } else {
+        console.warn("❌ Dati ricevuti incompleti:", event.data);
       }
     };
 
-    fetchTokenAndUser();
+    window.addEventListener("message", riceviDatiDaBepoli);
+    return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
 
   return (
@@ -85,5 +104,4 @@ function App() {
 }
 
 export default App;
-
 
