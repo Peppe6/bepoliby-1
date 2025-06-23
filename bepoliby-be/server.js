@@ -1,14 +1,14 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const Rooms = require('./model/dbRooms');
-const User = require('./model/dbUser');    // import User model
+const User = require('./model/dbUser');
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -37,6 +37,18 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'supersecretkey',
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
+  }
+}));
 
 // Helmet CSP
 app.use(
@@ -86,7 +98,7 @@ app.use(
   })
 );
 
-// Preflight manuale (opzionale, ma utile)
+// Preflight
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -99,28 +111,37 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware di autenticazione JWT
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  if (!token) return res.status(401).json({ error: "Token mancante" });
+// 🔐 Middleware sessione
+function authenticateSession(req, res, next) {
+  if (!req.session.user) {
+    return res.status(401).json({ error: "Utente non autenticato. Effettua il login." });
+  }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: "Token non valido" });
-    req.user = user;
-    next();
-  });
+  req.user = {
+    uid: req.session.user.id,
+    nome: req.session.user.nome,
+    username: req.session.user.username
+  };
+
+  next();
 }
 
-// Endpoint ricezione dati da sito esterno (senza autenticazione qui, oppure aggiungila se serve)
+// Endpoint ricezione dati da sito esterno (es. login)
 app.post('/api/ricevi-dati', (req, res) => {
-  const { id, username, nome, token } = req.body;
-  // Qui puoi verificare il token JWT se vuoi, per sicurezza
-  // es: jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => { ... })
+  const { id, username, nome } = req.body;
 
-  console.log("✅ Dati ricevuti:", { id, username, nome });
-  // Logica di salvataggio o altro...
-  res.status(200).json({ message: "Dati ricevuti correttamente" });
+  req.session.user = { id, username, nome };
+  console.log("✅ Dati ricevuti e salvati in sessione:", req.session.user);
+
+  res.status(200).json({ message: "Dati ricevuti e sessione impostata" });
+});
+
+// *** ENDPOINT PER OTTENERE L'UTENTE IN SESSIONE ***
+app.get("/api/session/user", (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ message: "Utente non autenticato" });
+  }
+  res.status(200).json({ user: req.session.user });
 });
 
 // MongoDB Connection
@@ -131,7 +152,7 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log("✅ MongoDB connected"))
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ChangeStream per notifiche realtime con Pusher
+// ChangeStream per notifiche realtime
 const db = mongoose.connection;
 db.once("open", () => {
   console.log("📡 DB connesso");
@@ -157,7 +178,7 @@ db.once("open", () => {
   });
 });
 
-// Pusher setup
+// Pusher
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -166,35 +187,30 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// API endpoints per rooms e messaggi
-
+// API di test
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
-// --- USERS endpoints ---
-
-// Lista utenti (uid e nome/username) per sidebar e creazione chat
-app.get("/api/v1/users", authenticateToken, async (req, res) => {
+// USERS
+app.get("/api/v1/users", authenticateSession, async (req, res) => {
   const users = await User.find({}, { uid: 1, nome: 1, username: 1, _id: 0 });
   res.status(200).json(users);
 });
 
-// Cerca utente per email (es. per creare chat)
-app.get("/api/v1/users/email/:email", authenticateToken, async (req, res) => {
+app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
   const email = req.params.email;
   const user = await User.findOne({ email });
   if (!user) return res.status(404).json({ error: "Utente non trovato" });
   res.status(200).json(user);
 });
 
-// --- ROOMS endpoints ---
-
-app.get("/api/v1/rooms", authenticateToken, async (req, res) => {
+// ROOMS
+app.get("/api/v1/rooms", authenticateSession, async (req, res) => {
   const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
   res.status(200).send(data);
 });
 
-app.post("/api/v1/rooms", authenticateToken, async (req, res) => {
+app.post("/api/v1/rooms", authenticateSession, async (req, res) => {
   const { name, members = [] } = req.body;
   if (!name) return res.status(400).json({ error: "Nome stanza mancante" });
   if (!members.includes(req.user.uid)) members.push(req.user.uid);
@@ -203,21 +219,21 @@ app.post("/api/v1/rooms", authenticateToken, async (req, res) => {
   res.status(201).send(data);
 });
 
-app.get("/api/v1/rooms/:id", authenticateToken, async (req, res) => {
+app.get("/api/v1/rooms/:id", authenticateSession, async (req, res) => {
   const room = await Rooms.findById(req.params.id);
   if (!room) return res.status(404).json({ message: "Room not found" });
   if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
   res.status(200).json(room);
 });
 
-app.get("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
+app.get("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => {
   const room = await Rooms.findById(req.params.id);
   if (!room) return res.status(404).json({ message: "Room not found" });
   if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
   res.status(200).json(room.messages || []);
 });
 
-app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
+app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => {
   const dbMessage = req.body;
   if (req.user.uid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
   dbMessage.timestamp = new Date(dbMessage.timestamp);
@@ -234,7 +250,7 @@ app.post("/api/v1/rooms/:id/messages", authenticateToken, async (req, res) => {
   res.status(201).json(dbMessage);
 });
 
-// Serve React frontend in produzione
+// Serve React frontend
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
   app.get("*", (req, res) => {
@@ -242,7 +258,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Error handling globale
+// Errori globali
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 process.on("unhandledRejection", err => console.error("❌ Unhandled Rejection:", err));
 
@@ -252,3 +268,4 @@ const server = app.listen(port, () => {
 });
 server.keepAliveTimeout = 120000;
 server.headersTimeout = 121000;
+
