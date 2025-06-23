@@ -1,12 +1,12 @@
 // reducer.js
-import { loadFromLocalStorage, saveToLocalStorage } from "./localStore";
 
 export const initialState = {
-  user: loadFromLocalStorage("user") || null,
+  user: null, // all'inizio non sappiamo chi è l'utente
 };
 
 export const actionTypes = {
   SET_USER: "SET_USER",
+  LOGOUT: "LOGOUT"
 };
 
 const reducer = (state, action) => {
@@ -14,10 +14,15 @@ const reducer = (state, action) => {
 
   switch (action.type) {
     case actionTypes.SET_USER:
-      saveToLocalStorage("user", action.user); // salva su localStorage
       return {
         ...state,
         user: action.user,
+      };
+
+    case actionTypes.LOGOUT:
+      return {
+        ...state,
+        user: null,
       };
 
     default:
@@ -26,3 +31,4 @@ const reducer = (state, action) => {
 };
 
 export default reducer;
+
