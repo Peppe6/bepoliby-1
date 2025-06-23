@@ -1,15 +1,15 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const Rooms = require('./model/dbRooms');
-const User = require('./model/dbUser'); // Assicurati di avere questo modello!
+const User = require('./model/dbUser');
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -34,7 +34,6 @@ const corsOptions = {
   allowedHeaders: ["Content-Type", "Authorization"]
 };
 
-// Middleware
 app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
@@ -51,55 +50,18 @@ app.use(session({
   }
 }));
 
-// Helmet Content Security Policy
-app.use(
-  helmet.contentSecurityPolicy({
-    useDefaults: true,
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        "https://translate.google.com",
-        "https://www.gstatic.com",
-        "https://apis.google.com",
-        "'unsafe-inline'",
-      ],
-      styleSrc: [
-        "'self'",
-        "https://fonts.googleapis.com",
-        "https://translate.googleapis.com",
-        "https://www.gstatic.com",
-        "'unsafe-inline'",
-      ],
-      styleSrcElem: [
-        "'self'",
-        "https://fonts.googleapis.com",
-        "https://translate.googleapis.com",
-        "https://www.gstatic.com",
-        "'unsafe-inline'",
-      ],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: [
-        "'self'",
-        "data:",
-        "https://www.gstatic.com",
-        "https://avatars.dicebear.com",
-        "https://www.gravatar.com",
-        "https://render-prod-avatars.s3.us-west-2.amazonaws.com",
-      ],
-      connectSrc: [
-        "'self'",
-        "wss:",
-        "https:",
-        "http://localhost:3000",
-        "http://localhost:9000",
-        "wss://ws-eu.pusher.com"
-      ],
-    },
-  })
-);
+app.use(helmet.contentSecurityPolicy({
+  useDefaults: true,
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "https://translate.google.com", "https://www.gstatic.com", "https://apis.google.com", "'unsafe-inline'"],
+    styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
+    fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    imgSrc: ["'self'", "data:", "https://www.gstatic.com", "https://avatars.dicebear.com", "https://www.gravatar.com", "https://render-prod-avatars.s3.us-west-2.amazonaws.com"],
+    connectSrc: ["'self'", "wss:", "https:", "http://localhost:3000", "http://localhost:9000", "wss://ws-eu.pusher.com"]
+  }
+}));
 
-// Preflight handling per CORS
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -112,36 +74,27 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware per verificare sessione e impostare dati utente
 function authenticateSession(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: "Utente non autenticato. Effettua il login." });
   }
-
   req.user = {
     uid: req.session.user.id,
     nome: req.session.user.nome,
     username: req.session.user.username
   };
-
   next();
 }
 
-// Endpoint per impostare dati utente in sessione (es. da login esterno)
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome } = req.body;
-
   if (!id || !username || !nome) {
     return res.status(400).json({ message: "Dati utente mancanti" });
   }
-
   req.session.user = { id, username, nome };
-  console.log("✅ Dati ricevuti e salvati in sessione:", req.session.user);
-
   res.status(200).json({ message: "Dati ricevuti e sessione impostata" });
 });
 
-// Endpoint per recuperare l'utente dalla sessione
 app.get("/api/session/user", (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ message: "Utente non autenticato" });
@@ -149,18 +102,14 @@ app.get("/api/session/user", (req, res) => {
   res.status(200).json({ user: req.session.user });
 });
 
-// Connessione a MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-})
-.then(() => console.log("✅ MongoDB connected"))
-.catch((err) => console.error("❌ MongoDB connection error:", err));
+}).then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ChangeStream per notifiche realtime su Rooms
 const db = mongoose.connection;
 db.once("open", () => {
-  console.log("📡 DB connesso");
   const roomCollection = db.collection("rooms");
   const changeStream = roomCollection.watch();
 
@@ -183,7 +132,6 @@ db.once("open", () => {
   });
 });
 
-// Pusher config
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -192,11 +140,10 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// API di test
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
-// USERS - richiede autenticazione
+// USERS
 app.get("/api/v1/users", authenticateSession, async (req, res) => {
   try {
     const users = await User.find({}, { id: 1, nome: 1, username: 1, _id: 0 });
@@ -208,8 +155,7 @@ app.get("/api/v1/users", authenticateSession, async (req, res) => {
 
 app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
   try {
-    const email = req.params.email;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: req.params.email });
     if (!user) return res.status(404).json({ error: "Utente non trovato" });
     res.status(200).json(user);
   } catch (err) {
@@ -217,7 +163,7 @@ app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
   }
 });
 
-// ROOMS - richiede autenticazione
+// ROOMS
 app.get("/api/v1/rooms", authenticateSession, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -230,8 +176,19 @@ app.get("/api/v1/rooms", authenticateSession, async (req, res) => {
 app.post("/api/v1/rooms", authenticateSession, async (req, res) => {
   try {
     const { name, members = [] } = req.body;
-    if (!name) return res.status(400).json({ error: "Nome stanza mancante" });
-    if (!members.includes(req.user.uid)) members.push(req.user.uid);
+    if (!name || members.length < 2) {
+      return res.status(400).json({ error: "Dati stanza mancanti o insufficienti" });
+    }
+
+    // Verifica se esiste già una stanza tra gli stessi membri
+    const existingRoom = await Rooms.findOne({
+      members: { $all: members, $size: members.length }
+    });
+
+    if (existingRoom) {
+      return res.status(409).json({ error: "Stanza già esistente", roomId: existingRoom._id });
+    }
+
     const roomData = { name, members, messages: [], lastMessageTimestamp: null };
     const data = await Rooms.create(roomData);
     res.status(201).send(data);
@@ -266,8 +223,8 @@ app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => 
   try {
     const dbMessage = req.body;
     if (req.user.uid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
-    dbMessage.timestamp = new Date(dbMessage.timestamp);
 
+    dbMessage.timestamp = new Date(dbMessage.timestamp);
     const room = await Rooms.findById(req.params.id);
     if (!room) return res.status(404).json({ message: "Room not found" });
     if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
@@ -283,7 +240,7 @@ app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => 
   }
 });
 
-// Serve React frontend in produzione
+// Serve frontend React
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
   app.get("*", (req, res) => {
@@ -291,11 +248,9 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Errori globali non catturati
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 process.on("unhandledRejection", err => console.error("❌ Unhandled Rejection:", err));
 
-// Avvio server
 const server = app.listen(port, () => {
   console.log(`🚀 Server in ascolto sulla porta ${port}`);
 });
