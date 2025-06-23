@@ -5,7 +5,8 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import { loadFromLocalStorage } from './utils/localStorageUtils'; // 👈 importa la tua utility
+
+import { saveToLocalStorage, loadFromLocalStorage } from './utils/localStorageUtils';
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
