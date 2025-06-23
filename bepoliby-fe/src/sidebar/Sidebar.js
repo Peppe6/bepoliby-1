@@ -18,11 +18,13 @@ const Sidebar = () => {
   const [allUsers, setAllUsers] = useState({});
 
   useEffect(() => {
+    if (!user?.token) return;  // evita chiamate senza token
+
     const fetchRooms = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
           headers: {
-            Authorization: `Bearer ${user?.token || ''}`
+            Authorization: `Bearer ${user.token}`
           }
         });
         setRooms(response.data);
@@ -35,7 +37,7 @@ const Sidebar = () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/v1/users`, {
           headers: {
-            Authorization: `Bearer ${user?.token || ''}`
+            Authorization: `Bearer ${user.token}`
           }
         });
         const usersMap = {};
@@ -46,20 +48,23 @@ const Sidebar = () => {
       }
     };
 
-    if (user?.token) {
-      fetchRooms();
-      fetchUsers();
-    }
+    fetchRooms();
+    fetchUsers();
   }, [user?.token]);
 
   const createChat = async () => {
+    if (!user?.token) {
+      alert("Non sei autenticato. Effettua il login.");
+      return;
+    }
+
     const emailAltroUtente = prompt("Inserisci l'email dell'altro utente");
     if (!emailAltroUtente) return;
 
     try {
       const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`, {
         headers: {
-          Authorization: `Bearer ${user?.token || ''}`
+          Authorization: `Bearer ${user.token}`
         }
       });
 
@@ -73,7 +78,7 @@ const Sidebar = () => {
         members: membri
       }, {
         headers: {
-          Authorization: `Bearer ${user?.token || ''}`
+          Authorization: `Bearer ${user.token}`
         }
       });
 
@@ -144,6 +149,7 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
 
 
