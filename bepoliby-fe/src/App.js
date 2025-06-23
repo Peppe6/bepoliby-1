@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -5,9 +6,6 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import axios from 'axios';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -33,30 +31,24 @@ function App() {
   const [, dispatch] = useStateValue();
 
   useEffect(() => {
-    const fetchSessionUser = async () => {
+    const userFromSession = sessionStorage.getItem("user");
+    if (userFromSession) {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/session/user`, {
-          withCredentials: true, // 👈 NECESSARIO per usare cookie di sessione
+        const parsedUser = JSON.parse(userFromSession);
+        dispatch({
+          type: "SET_USER",
+          user: {
+            uid: parsedUser.id, // Assicurati che `id` sia presente nel login
+            nome: parsedUser.nome,
+            username: parsedUser.username,
+          }
         });
-
-        if (res.data && res.data.user) {
-          dispatch({
-            type: "SET_USER",
-            user: {
-              uid: res.data.user.id,
-              nome: res.data.user.nome,
-              username: res.data.user.username
-            }
-          });
-        } else {
-          console.warn("⚠️ Nessun utente in sessione.");
-        }
-      } catch (err) {
-        console.error("Errore nel recupero della sessione:", err.response?.data || err.message);
+      } catch (e) {
+        console.error("Errore parsing utente dal sessionStorage", e);
       }
-    };
-
-    fetchSessionUser();
+    } else {
+      console.warn("⚠️ Nessun utente trovato nel sessionStorage.");
+    }
   }, [dispatch]);
 
   return (

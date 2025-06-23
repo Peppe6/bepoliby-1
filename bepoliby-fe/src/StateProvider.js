@@ -1,20 +1,16 @@
-// StateProvider.js
+
 import React, { createContext, useContext, useReducer } from "react";
 
-// Creo il contesto
+// Crea il contesto globale
 export const StateContext = createContext();
 
-// Componente provider che incapsula lo state e dispatch
-export const StateProvider = ({ reducer, initialState, children }) => {
-  const [state, dispatch] = useReducer(reducer, initialState);
+// Componente provider che avvolge l’app e fornisce stato globale
+export const StateProvider = ({ reducer, initialState, children }) => (
+  <StateContext.Provider value={useReducer(reducer, initialState)}>
+    {children}
+  </StateContext.Provider>
+);
 
-  return (
-    <StateContext.Provider value={[state, dispatch]}>
-      {children}
-    </StateContext.Provider>
-  );
-};
-
-// Hook custom per usare il context
+// Hook personalizzato per usare lo stato globale con facilità
 export const useStateValue = () => useContext(StateContext);
 
