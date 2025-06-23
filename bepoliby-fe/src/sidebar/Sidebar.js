@@ -18,14 +18,12 @@ const Sidebar = () => {
   const [allUsers, setAllUsers] = useState({});
 
   useEffect(() => {
-    if (!user?.token) return;  // evita chiamate senza token
+    if (!user) return;
 
     const fetchRooms = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
-          headers: {
-            Authorization: `Bearer ${user.token}`
-          }
+          withCredentials: true,
         });
         setRooms(response.data);
       } catch (error) {
@@ -36,9 +34,7 @@ const Sidebar = () => {
     const fetchUsers = async () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/v1/users`, {
-          headers: {
-            Authorization: `Bearer ${user.token}`
-          }
+          withCredentials: true,
         });
         const usersMap = {};
         res.data.forEach(u => { usersMap[u.uid] = u.nome || u.username; });
@@ -50,10 +46,10 @@ const Sidebar = () => {
 
     fetchRooms();
     fetchUsers();
-  }, [user?.token]);
+  }, [user]);
 
   const createChat = async () => {
-    if (!user?.token) {
+    if (!user) {
       alert("Non sei autenticato. Effettua il login.");
       return;
     }
@@ -63,23 +59,19 @@ const Sidebar = () => {
 
     try {
       const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`, {
-        headers: {
-          Authorization: `Bearer ${user.token}`
-        }
+        withCredentials: true,
       });
 
       const altroUtente = res.data;
       const membri = [user.uid, altroUtente.uid];
 
-      const roomName = `${user.displayName} - ${altroUtente.nome || altroUtente.username}`;
+      const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
 
       const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
         name: roomName,
         members: membri
       }, {
-        headers: {
-          Authorization: `Bearer ${user.token}`
-        }
+        withCredentials: true,
       });
 
       setRooms(prev => [...prev, roomRes.data]);
@@ -94,9 +86,9 @@ const Sidebar = () => {
       <div className="sidebar_header">
         <div className="sidebar_header_left">
           <IconButton>
-            <Avatar src={user?.photoURL || 'https://assets.gazzettadelsud.it/2019/01/Adrian-4.jpeg'} />
+            <Avatar src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`} />
           </IconButton>
-          <span>{user?.displayName || "Utente"}</span>
+          <span>{user?.nome || "Utente"}</span>
         </div>
         <div className="sidebar_header_right">
           <IconButton><FilterTiltShiftIcon /></IconButton>
@@ -130,7 +122,6 @@ const Sidebar = () => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
 
-            // Se la stanza ha solo due membri, mostra il nome dell'altro
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
             const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
@@ -149,6 +140,7 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
 
 
