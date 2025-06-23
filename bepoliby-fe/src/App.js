@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
 import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
+import { loadFromLocalStorage } from './utils/localStorageUtils'; // 👈 importa la tua utility
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -27,6 +28,20 @@ function InfoCenter() {
 }
 
 function App() {
+  const [, dispatch] = useStateValue();
+
+  useEffect(() => {
+    const storedUser = loadFromLocalStorage("user");
+    if (storedUser && storedUser.token) {
+      dispatch({
+        type: "SET_USER",
+        user: storedUser
+      });
+    } else {
+      console.warn("⚠️ Nessun utente trovato nel localStorage.");
+    }
+  }, [dispatch]);
+
   return (
     <div className="app">
       <div className="app_body">
