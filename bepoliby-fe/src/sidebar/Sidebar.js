@@ -14,10 +14,10 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [{ user, token }] = useStateValue();  // Assumiamo che token sia salvato nello stato globale
+  const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
 
-  // Imposto l'header Authorization globalmente se token presente
+  // Imposto l'Authorization header globalmente
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -27,14 +27,14 @@ const Sidebar = () => {
   }, [token]);
 
   useEffect(() => {
-    if (!user || !token) return;
+    if (!user?.uid || !token) return;
 
     const fetchRooms = async () => {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(response.data);
       } catch (error) {
-        console.error("Errore nel caricamento delle stanze:", error.response?.status, error.response?.data);
+        console.error("❌ Errore nel caricamento stanze:", error.response?.data || error.message);
       }
     };
 
@@ -42,10 +42,12 @@ const Sidebar = () => {
       try {
         const res = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
-        res.data.forEach(u => { usersMap[u.uid] = u.nome || u.username; });
+        res.data.forEach(u => {
+          usersMap[u.uid || u.id] = u.nome || u.username;
+        });
         setAllUsers(usersMap);
       } catch (err) {
-        console.error("Errore nel caricamento utenti:", err);
+        console.error("❌ Errore nel caricamento utenti:", err.response?.data || err.message);
       }
     };
 
@@ -54,18 +56,18 @@ const Sidebar = () => {
   }, [user, token]);
 
   const createChat = async () => {
-    if (!user || !token) {
-      alert("Non sei autenticato. Effettua il login.");
+    if (!user?.uid || !token) {
+      alert("Devi effettuare il login per iniziare una chat.");
       return;
     }
 
-    const emailAltroUtente = prompt("Inserisci l'email dell'altro utente");
+    const emailAltroUtente = prompt("Inserisci l'email dell'altro utente:");
     if (!emailAltroUtente) return;
 
     try {
       const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
-
       const altroUtente = res.data;
+
       const membri = [user.uid, altroUtente.uid];
 
       const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
@@ -77,8 +79,8 @@ const Sidebar = () => {
 
       setRooms(prev => [...prev, roomRes.data]);
     } catch (err) {
-      console.error("Errore nella creazione della chat:", err.response?.data || err.message);
-      alert("Errore nella creazione della chat.");
+      console.error("❌ Errore nella creazione chat:", err.response?.data || err.message);
+      alert("Errore nella creazione della chat. Assicurati che l'utente esista.");
     }
   };
 
