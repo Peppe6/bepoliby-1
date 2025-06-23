@@ -6,6 +6,10 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
+import axios from 'axios';
+import jwtDecode from 'jwt-decode';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -31,24 +35,37 @@ function App() {
   const [, dispatch] = useStateValue();
 
   useEffect(() => {
-    const userFromSession = sessionStorage.getItem("user");
-    if (userFromSession) {
+    const fetchTokenAndUser = async () => {
       try {
-        const parsedUser = JSON.parse(userFromSession);
+        const res = await axios.get(`${API_BASE_URL}/api/auth-token`, {
+          withCredentials: true, // importante per inviare cookie di sessione
+        });
+
+        const token = res.data.token;
+        sessionStorage.setItem("token", token);
+
+        // Decodifica il token per ottenere dati utente
+        const decoded = jwtDecode(token);
+
         dispatch({
           type: "SET_USER",
           user: {
-            uid: parsedUser.id, // Assicurati che `id` sia presente nel login
-            nome: parsedUser.nome,
-            username: parsedUser.username,
-          }
+            uid: decoded.id,
+            nome: decoded.nome,
+            username: decoded.username,
+          },
         });
-      } catch (e) {
-        console.error("Errore parsing utente dal sessionStorage", e);
+
+        // Imposta default header Authorization per tutte le richieste axios
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      } catch (err) {
+        console.warn("Utente non autenticato o token non disponibile:", err);
+        sessionStorage.removeItem("token");
+        dispatch({ type: "SET_USER", user: null });
       }
-    } else {
-      console.warn("⚠️ Nessun utente trovato nel sessionStorage.");
-    }
+    };
+
+    fetchTokenAndUser();
   }, [dispatch]);
 
   return (
@@ -67,6 +84,5 @@ function App() {
 }
 
 export default App;
-
 
 
