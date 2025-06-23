@@ -14,17 +14,24 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [{ user }] = useStateValue();
+  const [{ user, token }] = useStateValue();  // Assumiamo che token sia salvato nello stato globale
   const [allUsers, setAllUsers] = useState({});
 
+  // Imposto l'header Authorization globalmente se token presente
   useEffect(() => {
-    if (!user) return;
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!user || !token) return;
 
     const fetchRooms = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
-          withCredentials: true,
-        });
+        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(response.data);
       } catch (error) {
         console.error("Errore nel caricamento delle stanze:", error.response?.status, error.response?.data);
@@ -33,9 +40,7 @@ const Sidebar = () => {
 
     const fetchUsers = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/v1/users`, {
-          withCredentials: true,
-        });
+        const res = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         res.data.forEach(u => { usersMap[u.uid] = u.nome || u.username; });
         setAllUsers(usersMap);
@@ -46,10 +51,10 @@ const Sidebar = () => {
 
     fetchRooms();
     fetchUsers();
-  }, [user]);
+  }, [user, token]);
 
   const createChat = async () => {
-    if (!user) {
+    if (!user || !token) {
       alert("Non sei autenticato. Effettua il login.");
       return;
     }
@@ -58,9 +63,7 @@ const Sidebar = () => {
     if (!emailAltroUtente) return;
 
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`, {
-        withCredentials: true,
-      });
+      const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
 
       const altroUtente = res.data;
       const membri = [user.uid, altroUtente.uid];
@@ -70,8 +73,6 @@ const Sidebar = () => {
       const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
         name: roomName,
         members: membri
-      }, {
-        withCredentials: true,
       });
 
       setRooms(prev => [...prev, roomRes.data]);
@@ -140,6 +141,7 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
 
 
