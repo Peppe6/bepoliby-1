@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const Rooms = require('./model/dbRooms');
-const User = require('./model/dbUser');
+
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
