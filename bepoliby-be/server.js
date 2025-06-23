@@ -4,11 +4,12 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const Rooms = require('./model/dbRooms');
-
+const User = require('./model/dbUser'); // Assicurati di avere questo modello!
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
+const User = require('./model/dbUser');
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -50,7 +51,7 @@ app.use(session({
   }
 }));
 
-// Helmet CSP
+// Helmet Content Security Policy
 app.use(
   helmet.contentSecurityPolicy({
     useDefaults: true,
@@ -98,7 +99,7 @@ app.use(
   })
 );
 
-// Preflight
+// Preflight handling per CORS
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {
@@ -111,7 +112,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// 🔐 Middleware sessione
+// Middleware per verificare sessione e impostare dati utente
 function authenticateSession(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: "Utente non autenticato. Effettua il login." });
@@ -126,9 +127,13 @@ function authenticateSession(req, res, next) {
   next();
 }
 
-// Endpoint ricezione dati da sito esterno (es. login)
+// Endpoint per impostare dati utente in sessione (es. da login esterno)
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome } = req.body;
+
+  if (!id || !username || !nome) {
+    return res.status(400).json({ message: "Dati utente mancanti" });
+  }
 
   req.session.user = { id, username, nome };
   console.log("✅ Dati ricevuti e salvati in sessione:", req.session.user);
@@ -136,7 +141,7 @@ app.post('/api/ricevi-dati', (req, res) => {
   res.status(200).json({ message: "Dati ricevuti e sessione impostata" });
 });
 
-// *** ENDPOINT PER OTTENERE L'UTENTE IN SESSIONE ***
+// Endpoint per recuperare l'utente dalla sessione
 app.get("/api/session/user", (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ message: "Utente non autenticato" });
@@ -144,7 +149,7 @@ app.get("/api/session/user", (req, res) => {
   res.status(200).json({ user: req.session.user });
 });
 
-// MongoDB Connection
+// Connessione a MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -152,7 +157,7 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log("✅ MongoDB connected"))
 .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ChangeStream per notifiche realtime
+// ChangeStream per notifiche realtime su Rooms
 const db = mongoose.connection;
 db.once("open", () => {
   console.log("📡 DB connesso");
@@ -178,7 +183,7 @@ db.once("open", () => {
   });
 });
 
-// Pusher
+// Pusher config
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -191,66 +196,94 @@ const PusherClient = new Pusher({
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
-// USERS
+// USERS - richiede autenticazione
 app.get("/api/v1/users", authenticateSession, async (req, res) => {
-  const users = await User.find({}, { uid: 1, nome: 1, username: 1, _id: 0 });
-  res.status(200).json(users);
+  try {
+    const users = await User.find({}, { id: 1, nome: 1, username: 1, _id: 0 });
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel recupero utenti" });
+  }
 });
 
 app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
-  const email = req.params.email;
-  const user = await User.findOne({ email });
-  if (!user) return res.status(404).json({ error: "Utente non trovato" });
-  res.status(200).json(user);
+  try {
+    const email = req.params.email;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ error: "Utente non trovato" });
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel recupero utente" });
+  }
 });
 
-// ROOMS
+// ROOMS - richiede autenticazione
 app.get("/api/v1/rooms", authenticateSession, async (req, res) => {
-  const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
-  res.status(200).send(data);
+  try {
+    const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
+    res.status(200).send(data);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel recupero stanze" });
+  }
 });
 
 app.post("/api/v1/rooms", authenticateSession, async (req, res) => {
-  const { name, members = [] } = req.body;
-  if (!name) return res.status(400).json({ error: "Nome stanza mancante" });
-  if (!members.includes(req.user.uid)) members.push(req.user.uid);
-  const roomData = { name, members, messages: [], lastMessageTimestamp: null };
-  const data = await Rooms.create(roomData);
-  res.status(201).send(data);
+  try {
+    const { name, members = [] } = req.body;
+    if (!name) return res.status(400).json({ error: "Nome stanza mancante" });
+    if (!members.includes(req.user.uid)) members.push(req.user.uid);
+    const roomData = { name, members, messages: [], lastMessageTimestamp: null };
+    const data = await Rooms.create(roomData);
+    res.status(201).send(data);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nella creazione stanza" });
+  }
 });
 
 app.get("/api/v1/rooms/:id", authenticateSession, async (req, res) => {
-  const room = await Rooms.findById(req.params.id);
-  if (!room) return res.status(404).json({ message: "Room not found" });
-  if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
-  res.status(200).json(room);
+  try {
+    const room = await Rooms.findById(req.params.id);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
+    res.status(200).json(room);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel recupero stanza" });
+  }
 });
 
 app.get("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => {
-  const room = await Rooms.findById(req.params.id);
-  if (!room) return res.status(404).json({ message: "Room not found" });
-  if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
-  res.status(200).json(room.messages || []);
+  try {
+    const room = await Rooms.findById(req.params.id);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
+    res.status(200).json(room.messages || []);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel recupero messaggi" });
+  }
 });
 
 app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => {
-  const dbMessage = req.body;
-  if (req.user.uid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
-  dbMessage.timestamp = new Date(dbMessage.timestamp);
+  try {
+    const dbMessage = req.body;
+    if (req.user.uid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
+    dbMessage.timestamp = new Date(dbMessage.timestamp);
 
-  const room = await Rooms.findById(req.params.id);
-  if (!room) return res.status(404).json({ message: "Room not found" });
-  if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
+    const room = await Rooms.findById(req.params.id);
+    if (!room) return res.status(404).json({ message: "Room not found" });
+    if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
 
-  room.messages.push(dbMessage);
-  room.lastMessageTimestamp = dbMessage.timestamp;
-  await room.save();
+    room.messages.push(dbMessage);
+    room.lastMessageTimestamp = dbMessage.timestamp;
+    await room.save();
 
-  PusherClient.trigger(`room_${req.params.id}`, "inserted", { roomId: req.params.id, message: dbMessage });
-  res.status(201).json(dbMessage);
+    PusherClient.trigger(`room_${req.params.id}`, "inserted", { roomId: req.params.id, message: dbMessage });
+    res.status(201).json(dbMessage);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nell'invio messaggio" });
+  }
 });
 
-// Serve React frontend
+// Serve React frontend in produzione
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
   app.get("*", (req, res) => {
@@ -258,7 +291,7 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-// Errori globali
+// Errori globali non catturati
 process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
 process.on("unhandledRejection", err => console.error("❌ Unhandled Rejection:", err));
 
@@ -268,4 +301,5 @@ const server = app.listen(port, () => {
 });
 server.keepAliveTimeout = 120000;
 server.headersTimeout = 121000;
+
 
