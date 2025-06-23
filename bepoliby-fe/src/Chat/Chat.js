@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -11,64 +6,35 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import Pusher from 'pusher-js';
 import EmojiPicker from 'emoji-picker-react';
- import { jwtDecode } from 'jwt-decode';
- ;
+import { useStateValue } from '../StateProvider';
 
 function Chat() {
   const { roomId } = useParams();
+  const navigate = useNavigate();
   const [input, setInput] = useState("");
   const [roomName, setRoomName] = useState("");
   const [lastSeen, setLastSeen] = useState("");
   const [roomMessages, setRoomMessages] = useState([]);
-  const navigate = useNavigate();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-  const [userId, setUserId] = useState(null);
-  const [userName, setUserName] = useState(null);
+  const [{ user }] = useStateValue();
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
-
-  // Recupera userId e userName dal token JWT salvato in localStorage
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        setUserId(decoded.uid);       // Assumi che il token abbia il campo uid
-        setUserName(decoded.username); // Assumi che il token abbia il campo username
-      } catch (error) {
-        console.warn("Token non valido:", error);
-        setUserId(null);
-        setUserName(null);
-      }
-    } else {
-      setUserId(null);
-      setUserName(null);
-    }
-  }, []);
 
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
   };
 
-  // Pusher per aggiornamenti in real-time messaggi
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !user?.id) return;
 
-    const pusher = new Pusher('6a10fce7f61c4c88633b', {
-      cluster: 'eu'
-    });
-
+    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe(`room_${roomId}`);
 
     channel.bind('inserted', function (payload) {
       const newMsg = payload.message;
-
       setRoomMessages(prevMessages => {
-        if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
-
         const tempIndex = prevMessages.findIndex(m =>
-          m._id && m._id.startsWith('temp-') &&
+          m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
           m.uid === newMsg.uid
         );
@@ -79,9 +45,9 @@ function Chat() {
           return copy;
         }
 
+        if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
         return [...prevMessages, newMsg];
       });
-
       setLastSeen(newMsg.timestamp);
     });
 
@@ -89,60 +55,56 @@ function Chat() {
       channel.unbind_all();
       channel.unsubscribe();
     };
-  }, [roomId]);
+  }, [roomId, user?.id]);
 
-  // Fetch dati stanza e messaggi con header x-user-uid
   useEffect(() => {
     const fetchRoomData = async () => {
-      if (!userId) {
+      if (!roomId || !user?.id) {
         navigate("/");
         return;
       }
+
       try {
-        const headers = { 'x-user-uid': userId };
-        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`, { headers });
+        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`, {
+          withCredentials: true
+        });
         setRoomName(roomRes.data.name);
 
-        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`, { headers });
+        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`, {
+          withCredentials: true
+        });
         setRoomMessages(messagesRes.data);
 
-        const lastMsg = messagesRes.data[messagesRes.data.length - 1];
+        const lastMsg = messagesRes.data.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
+        console.error("Errore caricamento chat:", err);
         navigate("/");
       }
     };
 
-    if (roomId && userId) fetchRoomData();
-  }, [roomId, navigate, apiUrl, userId]);
+    fetchRoomData();
+  }, [roomId, user?.id]);
 
-  // Invio messaggio con header x-user-uid e gestione messaggio temporaneo
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !userId) return;
+    if (!input.trim() || !user?.id) return;
 
     const tempId = `temp-${Date.now()}`;
     const newMessage = {
       _id: tempId,
       message: input,
-      name: userName || "Anonimo",
+      name: user.nome || "Utente",
       timestamp: new Date().toISOString(),
-      uid: userId,
+      uid: user.id
     };
 
     setRoomMessages(prev => [...prev, newMessage]);
     setInput("");
 
     try {
-      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, {
-        message: newMessage.message,
-        name: newMessage.name,
-        timestamp: newMessage.timestamp,
-        uid: newMessage.uid,
-      }, {
-        headers: {
-          'x-user-uid': userId
-        }
+      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage, {
+        withCredentials: true
       });
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
@@ -167,26 +129,21 @@ function Chat() {
             Visto l'ultima volta:{" "}
             {lastSeen
               ? new Date(lastSeen).toLocaleString("it-IT", {
-                  day: "2-digit",
-                  month: "2-digit",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
+                  day: "2-digit", month: "2-digit", year: "numeric",
+                  hour: "2-digit", minute: "2-digit", second: "2-digit"
                 })
               : "Mai"}
           </p>
           <p style={{ fontSize: '0.8rem', color: '#666' }}>
-            Sei connesso come <b>{userName || "Anonimo"}</b>
+            Sei connesso come <b>{user?.nome || "Utente"}</b>
           </p>
         </div>
       </div>
 
       <div className="Chat_body">
         {roomMessages.map((message, index) => {
-          const date = new Date(message.timestamp);
-          const isValidDate = !isNaN(date);
-          const isOwnMessage = message.uid === userId;
+          const isOwnMessage = message.uid === user?.id;
+          const isValidDate = !isNaN(new Date(message.timestamp));
 
           return (
             <div
@@ -208,13 +165,9 @@ function Chat() {
                 {message.message}
                 <span className="Chat_timestamp">
                   {isValidDate
-                    ? date.toLocaleString("it-IT", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
+                    ? new Date(message.timestamp).toLocaleString("it-IT", {
+                        day: "2-digit", month: "2-digit", year: "numeric",
+                        hour: "2-digit", minute: "2-digit", second: "2-digit"
                       })
                     : "Data non valida"}
                 </span>
@@ -253,6 +206,7 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
 
