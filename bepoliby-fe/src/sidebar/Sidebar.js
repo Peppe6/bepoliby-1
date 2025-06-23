@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -10,18 +9,17 @@ import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 
-// Prendi base URL dal file .env
 const API_BASE_URL = process.env.REACT_APP_API_URL;
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [{ user }] = useStateValue();
+  const [allUsers, setAllUsers] = useState({});
 
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        console.log("Chiamata GET /api/v1/rooms con filtro utente e token");
         const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
           headers: {
             Authorization: `Bearer ${user?.token || ''}`
@@ -29,44 +27,60 @@ const Sidebar = () => {
         });
         setRooms(response.data);
       } catch (error) {
-        if (error.response) {
-          console.error("Errore nel caricamento delle stanze:", error.response.status, error.response.data);
-        } else {
-          console.error("Errore nel caricamento delle stanze:", error.message);
-        }
+        console.error("Errore nel caricamento delle stanze:", error.response?.status, error.response?.data);
+      }
+    };
+
+    const fetchUsers = async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/v1/users`, {
+          headers: {
+            Authorization: `Bearer ${user?.token || ''}`
+          }
+        });
+        const usersMap = {};
+        res.data.forEach(u => { usersMap[u.uid] = u.nome || u.username; });
+        setAllUsers(usersMap);
+      } catch (err) {
+        console.error("Errore nel caricamento utenti:", err);
       }
     };
 
     if (user?.token) {
       fetchRooms();
-    } else {
-      console.log("Token utente non disponibile, non carico le stanze");
+      fetchUsers();
     }
   }, [user?.token]);
 
   const createChat = async () => {
-    const roomName = prompt("Inserisci un nome per la Chat!");
-    if (roomName && roomName.trim()) {
-      try {
-        console.log("Nome stanza:", roomName.trim());
-        const response = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
-          name: roomName.trim(),
-        }, {
-          headers: {
-            Authorization: `Bearer ${user?.token || ''}`
-          }
-        });
-        console.log("Risposta creazione stanza:", response.data);
-        setRooms(prev => [...prev, response.data]);
-      } catch (error) {
-        if (error.response) {
-          console.error("Errore nella creazione della stanza:", error.response.status, error.response.data);
-        } else {
-          console.error("Errore nella creazione della stanza:", error.message);
+    const emailAltroUtente = prompt("Inserisci l'email dell'altro utente");
+    if (!emailAltroUtente) return;
+
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`, {
+        headers: {
+          Authorization: `Bearer ${user?.token || ''}`
         }
-      }
-    } else {
-      console.log("Creazione stanza annullata o nome non valido");
+      });
+
+      const altroUtente = res.data;
+      const membri = [user.uid, altroUtente.uid];
+
+      const roomName = `${user.displayName} - ${altroUtente.nome || altroUtente.username}`;
+
+      const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
+        name: roomName,
+        members: membri
+      }, {
+        headers: {
+          Authorization: `Bearer ${user?.token || ''}`
+        }
+      });
+
+      setRooms(prev => [...prev, roomRes.data]);
+    } catch (err) {
+      console.error("Errore nella creazione della chat:", err.response?.data || err.message);
+      alert("Errore nella creazione della chat.");
     }
   };
 
@@ -100,7 +114,7 @@ const Sidebar = () => {
 
       <div className="sidebar_chats">
         <div onClick={createChat} className="sidebarChat addNewChat" style={{ cursor: 'pointer' }}>
-          <h3>➕ Aggiungi nuova chat</h3>
+          <h3>➕ Inizia una nuova chat</h3>
         </div>
 
         {rooms
@@ -111,11 +125,15 @@ const Sidebar = () => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
 
+            // Se la stanza ha solo due membri, mostra il nome dell'altro
+            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
+
             return (
               <SidebarChat
                 key={room._id}
                 id={room._id}
-                name={room.name}
+                name={displayName}
                 lastMessageText={lastMessage}
               />
             );
@@ -126,6 +144,7 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
 
 
