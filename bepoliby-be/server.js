@@ -9,7 +9,7 @@ const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-const User = require('./model/dbUser');
+
 
 const app = express();
 const port = process.env.PORT || 9000;
