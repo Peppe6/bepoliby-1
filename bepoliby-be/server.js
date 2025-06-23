@@ -1,7 +1,9 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const Rooms = require('./model/dbRooms');
+const User = require('./model/dbUser');    // import User model
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -113,14 +115,11 @@ function authenticateToken(req, res, next) {
 // Endpoint ricezione dati da sito esterno (senza autenticazione qui, oppure aggiungila se serve)
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome, token } = req.body;
-
   // Qui puoi verificare il token JWT se vuoi, per sicurezza
   // es: jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => { ... })
 
   console.log("✅ Dati ricevuti:", { id, username, nome });
-
   // Logica di salvataggio o altro...
-
   res.status(200).json({ message: "Dati ricevuti correttamente" });
 });
 
@@ -171,6 +170,24 @@ const PusherClient = new Pusher({
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
+
+// --- USERS endpoints ---
+
+// Lista utenti (uid e nome/username) per sidebar e creazione chat
+app.get("/api/v1/users", authenticateToken, async (req, res) => {
+  const users = await User.find({}, { uid: 1, nome: 1, username: 1, _id: 0 });
+  res.status(200).json(users);
+});
+
+// Cerca utente per email (es. per creare chat)
+app.get("/api/v1/users/email/:email", authenticateToken, async (req, res) => {
+  const email = req.params.email;
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ error: "Utente non trovato" });
+  res.status(200).json(user);
+});
+
+// --- ROOMS endpoints ---
 
 app.get("/api/v1/rooms", authenticateToken, async (req, res) => {
   const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
