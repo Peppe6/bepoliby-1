@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -6,7 +5,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import { jwtDecode } from "jwt-decode";
+import jwtDecode from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -64,39 +63,46 @@ function App() {
       const { id, username, nome, token } = event.data?.dati || {};
 
       if (id && username && nome && token) {
-        console.log("✅ Dati ricevuti via postMessage:", { id, username, nome });
-
-        sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
-        sessionStorage.setItem("token", token);
-
-        dispatch({
-          type: "SET_USER",
-          user: {
-            uid: id,
-            nome,
-            username
-          },
-          token: token
-        });
-
         try {
-          const res = await fetch(`${process.env.REACT_APP_API_URL || "https://bepoli.onrender.com"}/api/ricevi-dati`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
+          // Salva i dati in sessionStorage
+          sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
+          sessionStorage.setItem("token", token);
+
+          // Aggiorna stato globale
+          dispatch({
+            type: "SET_USER",
+            user: {
+              uid: id,
+              username,
+              nome,
             },
-            credentials: "include",
-            body: JSON.stringify({ id, username, nome })
+            token,
           });
 
-          const json = await res.json();
+          console.log("✅ Dati ricevuti e salvati via postMessage:", { id, username, nome, token });
+
+          // Crea la sessione backend
+          const res = await fetch(
+            `${process.env.REACT_APP_API_URL || "https://bepoli.onrender.com"}/api/ricevi-dati`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({ id, username, nome }),
+            }
+          );
+
           if (res.ok) {
+            const json = await res.json();
             console.log("✅ Sessione backend creata:", json);
           } else {
-            console.error("❌ Errore nella creazione sessione:", json);
+            const errorJson = await res.json();
+            console.error("❌ Errore nella creazione sessione backend:", errorJson);
           }
-        } catch (err) {
-          console.error("❌ Errore fetch sessione:", err);
+        } catch (error) {
+          console.error("❌ Errore nel gestire dati postMessage:", error);
         }
       } else {
         console.warn("❌ Dati ricevuti incompleti:", event.data);
@@ -164,4 +170,5 @@ function App() {
 }
 
 export default App;
+
 
