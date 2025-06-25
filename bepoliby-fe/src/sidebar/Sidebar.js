@@ -1,6 +1,3 @@
-
-
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -71,7 +68,7 @@ const Sidebar = () => {
       const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
       const altroUtente = res.data;
 
-      const membri = [user.uid, altroUtente.id];
+      const membri = [user.uid, altroUtente.uid];
 
       const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
 
@@ -146,7 +143,6 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
 
 
 
