@@ -1,28 +1,25 @@
 
-
 export const initialState = {
-  user: JSON.parse(sessionStorage.getItem("user")) || null,
-  token: sessionStorage.getItem("token") || null,   // aggiunto token
+  user: null,
+  token: null,
 };
 
 export const actionTypes = {
   SET_USER: "SET_USER",
-  SET_TOKEN: "SET_TOKEN",  // opzionale, vedi sotto
   LOGOUT: "LOGOUT",
 };
 
 const reducer = (state, action) => {
   switch (action.type) {
     case actionTypes.SET_USER:
+      // Salva in sessionStorage
       sessionStorage.setItem("user", JSON.stringify(action.user));
-      // se arriva anche token, lo salvo
-      if (action.token) {
-        sessionStorage.setItem("token", action.token);
-      }
+      sessionStorage.setItem("token", action.token);
+
       return {
         ...state,
         user: action.user,
-        token: action.token || state.token,
+        token: action.token,
       };
 
     case actionTypes.LOGOUT:
