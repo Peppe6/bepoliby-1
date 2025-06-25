@@ -7,7 +7,8 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import jwt_decode from "jwt-decode";  // IMPORT DEFAULT CORRETTO
+ import { jwtDecode } from "jwt-decode";  // ✅
+// IMPORT DEFAULT CORRETTO
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -38,7 +39,8 @@ function App() {
 
     if (typeof token === "string" && token.trim() !== "") {
       try {
-        const decoded = jwt_decode(token);
+        const decoded = jwtDecode(token);
+;
         dispatch({
           type: "SET_USER",
           user: {
@@ -125,7 +127,8 @@ function App() {
         }
 
         const { token } = await res.json();
-        const decoded = jwt_decode(token);
+       const decoded = jwtDecode(token);
+ ;
 
         sessionStorage.setItem("token", token);
         sessionStorage.setItem("user", JSON.stringify(decoded));
