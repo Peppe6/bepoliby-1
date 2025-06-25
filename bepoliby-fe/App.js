@@ -83,7 +83,7 @@ function App() {
 
         // Invia al backend per creare la sessione Express
         try {
-          const res = await fetch(`${process.env.REACT_APP_API_URL || "https://bepoliby-1-2.onrender.com"}/api/ricevi-dati`, {
+          const res = await fetch(`${process.env.REACT_APP_API_URL || "https://bepoli.onrender.com/"}/api/ricevi-dati`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
