@@ -30,7 +30,7 @@ function InfoCenter() {
 function App() {
   const [, dispatch] = useStateValue();
 
-  // 1️⃣ Recupera i dati da sessionStorage se già presenti
+  // 1️⃣ Recupera i dati da sessionStorage (se già presenti)
   useEffect(() => {
     const token = sessionStorage.getItem("token");
 
@@ -54,21 +54,21 @@ function App() {
     }
   }, [dispatch]);
 
-  // 2️⃣ Riceve i dati da postMessage (dopo login da sito principale)
+  // 2️⃣ Riceve i dati da postMessage (dopo login su sito principale)
   useEffect(() => {
     const riceviDatiDaBepoli = async (event) => {
       if (event.origin !== "https://bepoli.onrender.com") return;
 
-      const { id, username, nome, token } = event.data;
+      const { id, username, nome, token } = event.data.dati || {};
 
       if (id && username && nome && token) {
-        console.log("✅ Dati ricevuti:", event.data);
+        console.log("✅ Dati ricevuti:", { id, username, nome, token });
 
-        // Salva in sessionStorage
+        // Salva nel sessionStorage
         sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
         sessionStorage.setItem("token", token);
 
-        // Aggiorna stato globale
+        // Aggiorna lo stato globale
         dispatch({
           type: "SET_USER",
           user: {
@@ -124,4 +124,5 @@ function App() {
 }
 
 export default App;
+
 
