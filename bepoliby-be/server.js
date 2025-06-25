@@ -146,12 +146,16 @@ app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 // USERS
 app.get("/api/v1/users", authenticateSession, async (req, res) => {
   try {
-    const users = await User.find({}, { id: 1, nome: 1, username: 1, _id: 0 });
+    const users = await User.find(
+      { id: { $ne: req.user.uid } }, // escludi l’utente corrente
+      { id: 1, nome: 1, username: 1, _id: 0 }
+    );
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json({ error: "Errore nel recupero utenti" });
   }
 });
+
 
 app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
   try {
