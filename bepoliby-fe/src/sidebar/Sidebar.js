@@ -1,4 +1,6 @@
 
+
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -18,6 +20,7 @@ const Sidebar = () => {
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
 
+  // Imposto l'Authorization header globalmente
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -31,9 +34,7 @@ const Sidebar = () => {
 
     const fetchRooms = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`, {
-          withCredentials: true,
-        });
+        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(response.data);
       } catch (error) {
         console.error("❌ Errore nel caricamento stanze:", error.response?.data || error.message);
@@ -42,13 +43,10 @@ const Sidebar = () => {
 
     const fetchUsers = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/v1/users`, {
-          withCredentials: true,
-        });
-
+        const res = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         res.data.forEach(u => {
-          usersMap[u.id] = u.nome || u.username; // usa 'id' dal backend
+          usersMap[u.uid || u.id] = u.nome || u.username;
         });
         setAllUsers(usersMap);
       } catch (err) {
@@ -70,20 +68,16 @@ const Sidebar = () => {
     if (!emailAltroUtente) return;
 
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`, {
-        withCredentials: true,
-      });
-
+      const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
       const altroUtente = res.data;
 
-      const membri = [user.uid, altroUtente.id]; // id, non uid
+      const membri = [user.uid, altroUtente.id];
+
       const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
 
       const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
         name: roomName,
         members: membri
-      }, {
-        withCredentials: true,
       });
 
       setRooms(prev => [...prev, roomRes.data]);
@@ -134,8 +128,8 @@ const Sidebar = () => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
 
-            const otherUserId = (room.members || []).find(id => id !== user.uid);
-            const displayName = otherUserId ? (allUsers[otherUserId] || room.name) : room.name;
+            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
             return (
               <SidebarChat
@@ -152,10 +146,6 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
-
-
-
 
 
 
