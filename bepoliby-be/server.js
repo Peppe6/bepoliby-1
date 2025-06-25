@@ -1,4 +1,5 @@
 
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -46,7 +47,8 @@ app.use(session({
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // sessione valida 7 giorni
   }
 }));
 
@@ -78,6 +80,9 @@ function authenticateSession(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: "Utente non autenticato. Effettua il login." });
   }
+  // Estendi durata sessione ad ogni richiesta
+  req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
+
   req.user = {
     uid: req.session.user.id,
     nome: req.session.user.nome,
@@ -156,7 +161,6 @@ app.get("/api/v1/users", authenticateSession, async (req, res) => {
   }
 });
 
-
 app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
   try {
     const user = await User.findOne({ email: req.params.email });
@@ -225,40 +229,25 @@ app.get("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => {
 
 app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => {
   try {
-    const dbMessage = req.body;
-    if (req.user.uid !== dbMessage.uid) return res.status(403).json({ message: "UID mismatch" });
+    const dbRoom = await Rooms.findById(req.params.id);
+    if (!dbRoom) return res.status(404).json({ message: "Room not found" });
+    if (!dbRoom.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
 
-    dbMessage.timestamp = new Date(dbMessage.timestamp);
-    const room = await Rooms.findById(req.params.id);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-    if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
+    const newMessage = {
+      message: req.body.message,
+      name: req.user.nome,
+      timestamp: new Date().toISOString(),
+      uid: req.user.uid
+    };
 
-    room.messages.push(dbMessage);
-    room.lastMessageTimestamp = dbMessage.timestamp;
-    await room.save();
+    dbRoom.messages.push(newMessage);
+    dbRoom.lastMessageTimestamp = new Date();
+    await dbRoom.save();
 
-    PusherClient.trigger(`room_${req.params.id}`, "inserted", { roomId: req.params.id, message: dbMessage });
-    res.status(201).json(dbMessage);
+    res.status(201).json(newMessage);
   } catch (err) {
     res.status(500).json({ error: "Errore nell'invio messaggio" });
   }
 });
 
-// Serve frontend React
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../bepoliby-fe/build")));
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../bepoliby-fe/build", "index.html"));
-  });
-}
-
-process.on("uncaughtException", err => console.error("❌ Uncaught Exception:", err));
-process.on("unhandledRejection", err => console.error("❌ Unhandled Rejection:", err));
-
-const server = app.listen(port, () => {
-  console.log(`🚀 Server in ascolto sulla porta ${port}`);
-});
-server.keepAliveTimeout = 120000;
-server.headersTimeout = 121000;
-
-
+app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
