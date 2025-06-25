@@ -1,4 +1,3 @@
-
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -31,7 +30,7 @@ function InfoCenter() {
 function App() {
   const [, dispatch] = useStateValue();
 
-  // 1️⃣ Recupera i dati da sessionStorage (se già presenti)
+  // 1️⃣ Recupera i dati da sessionStorage se già presenti
   useEffect(() => {
     const token = sessionStorage.getItem("token");
 
@@ -55,9 +54,9 @@ function App() {
     }
   }, [dispatch]);
 
-  // 2️⃣ Riceve dati utente da bepoli.onrender.com (via postMessage)
+  // 2️⃣ Riceve i dati da postMessage (dopo login da sito principale)
   useEffect(() => {
-    const riceviDatiDaBepoli = (event) => {
+    const riceviDatiDaBepoli = async (event) => {
       if (event.origin !== "https://bepoli.onrender.com") return;
 
       const { id, username, nome, token } = event.data;
@@ -65,20 +64,41 @@ function App() {
       if (id && username && nome && token) {
         console.log("✅ Dati ricevuti:", event.data);
 
-        // Salva nel sessionStorage
+        // Salva in sessionStorage
         sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
         sessionStorage.setItem("token", token);
 
-        // Aggiorna lo stato globale
+        // Aggiorna stato globale
         dispatch({
           type: "SET_USER",
           user: {
             uid: id,
-            nome: nome,
-            username: username
+            nome,
+            username
           },
           token: token
         });
+
+        // 🔁 Invia i dati al backend per creare la sessione
+        try {
+          const res = await fetch(`${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/ricevi-dati`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            credentials: "include",
+            body: JSON.stringify({ id, username, nome })
+          });
+
+          const json = await res.json();
+          if (res.ok) {
+            console.log("✅ Sessione backend creata:", json);
+          } else {
+            console.error("❌ Errore nella creazione sessione:", json);
+          }
+        } catch (err) {
+          console.error("❌ Errore fetch sessione:", err);
+        }
       } else {
         console.warn("❌ Dati ricevuti incompleti:", event.data);
       }
