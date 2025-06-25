@@ -1,4 +1,5 @@
 
+
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -6,7 +7,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import { jwt_decode } from "jwt-decode";// import corretto
+import jwt_decode from "jwt-decode";  // IMPORT DEFAULT CORRETTO
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -164,4 +165,3 @@ function App() {
 }
 
 export default App;
-
