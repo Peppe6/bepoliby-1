@@ -1,5 +1,4 @@
 
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -15,6 +14,7 @@ const path = require('path');
 const app = express();
 const port = process.env.PORT || 9000;
 
+// ✅ Origini consentite
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
@@ -22,6 +22,7 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
+// ✅ Config CORS
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -39,6 +40,7 @@ app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
 
+// ✅ Config sessione corretta
 app.use(session({
   secret: process.env.SESSION_SECRET || 'supersecretkey',
   resave: false,
@@ -46,12 +48,13 @@ app.use(session({
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // sessione valida 7 giorni
+    sameSite: 'none',
+    secure: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 giorni
   }
 }));
 
+// ✅ CSP (opzionale)
 app.use(helmet.contentSecurityPolicy({
   useDefaults: true,
   directives: {
@@ -64,24 +67,11 @@ app.use(helmet.contentSecurityPolicy({
   }
 }));
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-  if (req.method === "OPTIONS") return res.sendStatus(204);
-  next();
-});
-
+// ✅ Middleware autenticazione sessione
 function authenticateSession(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: "Utente non autenticato. Effettua il login." });
   }
-  // Estendi durata sessione ad ogni richiesta
-  req.session.cookie.maxAge = 7 * 24 * 60 * 60 * 1000;
 
   req.user = {
     uid: req.session.user.id,
@@ -91,11 +81,13 @@ function authenticateSession(req, res, next) {
   next();
 }
 
+// ✅ Endpoint per ricevere i dati postMessage e salvare la sessione
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome } = req.body;
   if (!id || !username || !nome) {
     return res.status(400).json({ message: "Dati utente mancanti" });
   }
+
   req.session.user = { id, username, nome };
   res.status(200).json({ message: "Dati ricevuti e sessione impostata" });
 });
@@ -107,12 +99,14 @@ app.get("/api/session/user", (req, res) => {
   res.status(200).json({ user: req.session.user });
 });
 
+// ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
+// ✅ Change stream per messaggi in tempo reale
 const db = mongoose.connection;
 db.once("open", () => {
   const roomCollection = db.collection("rooms");
@@ -137,6 +131,7 @@ db.once("open", () => {
   });
 });
 
+// ✅ Pusher config
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -145,6 +140,7 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
+// ✅ Endpoint di test
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
@@ -152,22 +148,12 @@ app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 app.get("/api/v1/users", authenticateSession, async (req, res) => {
   try {
     const users = await User.find(
-      { id: { $ne: req.user.uid } }, // escludi l’utente corrente
+      { id: { $ne: req.user.uid } },
       { id: 1, nome: 1, username: 1, _id: 0 }
     );
     res.status(200).json(users);
   } catch (err) {
     res.status(500).json({ error: "Errore nel recupero utenti" });
-  }
-});
-
-app.get("/api/v1/users/email/:email", authenticateSession, async (req, res) => {
-  try {
-    const user = await User.findOne({ email: req.params.email });
-    if (!user) return res.status(404).json({ error: "Utente non trovato" });
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ error: "Errore nel recupero utente" });
   }
 });
 
@@ -188,7 +174,6 @@ app.post("/api/v1/rooms", authenticateSession, async (req, res) => {
       return res.status(400).json({ error: "Dati stanza mancanti o insufficienti" });
     }
 
-    // Verifica se esiste già una stanza tra gli stessi membri
     const existingRoom = await Rooms.findOne({
       members: { $all: members, $size: members.length }
     });
@@ -202,17 +187,6 @@ app.post("/api/v1/rooms", authenticateSession, async (req, res) => {
     res.status(201).send(data);
   } catch (err) {
     res.status(500).json({ error: "Errore nella creazione stanza" });
-  }
-});
-
-app.get("/api/v1/rooms/:id", authenticateSession, async (req, res) => {
-  try {
-    const room = await Rooms.findById(req.params.id);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-    if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
-    res.status(200).json(room);
-  } catch (err) {
-    res.status(500).json({ error: "Errore nel recupero stanza" });
   }
 });
 
@@ -250,4 +224,6 @@ app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => 
   }
 });
 
+// ✅ Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
+
