@@ -1,4 +1,5 @@
 
+
 .sidebar { 
   display: flex;
   flex-direction: column;
@@ -116,44 +117,4 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* 🔽 Sezione utenti disponibili */
-.sidebar_users_title {
-  padding: 0.5rem 1.25rem 0.25rem;
-  font-size: 13px;
-  font-weight: 600;
-  color: #666;
-  border-top: 1px solid #eee;
-}
-
-.sidebar_users_list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1rem;
-}
-
-.sidebar_user_item {
-  display: flex;
-  align-items: center;
-  padding: 10px 20px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.sidebar_user_item:hover {
-  background-color: #f5f5f5;
-}
-
-.sidebar_user_item .MuiAvatar-root {
-  width: 32px;
-  height: 32px;
-  margin-right: 12px;
-}
-
-.sidebar_user_item span {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-}
-
+} questo ho ora mandami il nuovo completo 
