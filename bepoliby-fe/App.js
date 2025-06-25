@@ -66,11 +66,9 @@ function App() {
       if (id && username && nome && token) {
         console.log("✅ Dati ricevuti via postMessage:", { id, username, nome });
 
-        // Salva in sessionStorage
         sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
         sessionStorage.setItem("token", token);
 
-        // Aggiorna stato globale
         dispatch({
           type: "SET_USER",
           user: {
@@ -81,14 +79,13 @@ function App() {
           token: token
         });
 
-        // Invia al backend per creare la sessione Express
         try {
-          const res = await fetch(`${process.env.REACT_APP_API_URL || "https://bepoli.onrender.com/"}/api/ricevi-dati`, {
+          const res = await fetch(`${process.env.REACT_APP_API_URL || "https://bepoli.onrender.com"}/api/ricevi-dati`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
             },
-            credentials: "include", // IMPORTANTISSIMO
+            credentials: "include",
             body: JSON.stringify({ id, username, nome })
           });
 
@@ -110,6 +107,47 @@ function App() {
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
 
+  // 3️⃣ 🔥 Fallback: prova a ottenere il token da /api/auth-token
+  useEffect(() => {
+    const fetchTokenFromMainApp = async () => {
+      const existingToken = sessionStorage.getItem("token");
+      if (existingToken) return;
+
+      try {
+        const res = await fetch("https://bepoli.onrender.com/api/auth-token", {
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          console.warn("⚠️ Utente non autenticato o errore nel fetch del token.");
+          return;
+        }
+
+        const { token } = await res.json();
+        const decoded = jwtDecode(token);
+
+        sessionStorage.setItem("token", token);
+        sessionStorage.setItem("user", JSON.stringify(decoded));
+
+        dispatch({
+          type: "SET_USER",
+          user: {
+            uid: decoded.id,
+            nome: decoded.nome,
+            username: decoded.username
+          },
+          token: token
+        });
+
+        console.log("✅ Token ottenuto automaticamente da /api/auth-token");
+      } catch (error) {
+        console.error("❌ Errore nel recupero automatico del token:", error);
+      }
+    };
+
+    fetchTokenFromMainApp();
+  }, [dispatch]);
+
   return (
     <div className="app">
       <div className="app_body">
@@ -126,5 +164,4 @@ function App() {
 }
 
 export default App;
-
 
