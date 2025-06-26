@@ -1,5 +1,5 @@
 
-
+// FILE: App.js (frontend sito messaggistica)
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -7,6 +7,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
+import jwtDecode from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -28,76 +29,61 @@ function InfoCenter() {
 
 function App() {
   const [, dispatch] = useStateValue();
+  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-  // 1️⃣ Carica utente da sessionStorage (se presente)
   useEffect(() => {
     const userString = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("token");
 
-    if (userString) {
+    if (userString && token) {
       try {
         const userData = JSON.parse(userString);
         dispatch({
           type: "SET_USER",
-          user: {
-            uid: userData.id || userData.uid,
-            nome: userData.nome,
-            username: userData.username,
-          },
-          token: token || null,
+          user: { uid: userData.id || userData.uid, nome: userData.nome, username: userData.username },
+          token
         });
         console.log("✅ Utente caricato da sessionStorage:", userData);
       } catch {
         console.warn("⚠️ user in sessionStorage non valido");
       }
-    } else {
-      console.warn("⚠️ Nessun utente in sessionStorage");
     }
   }, [dispatch]);
 
-  // 2️⃣ Ascolta postMessage dal sito principale per dati utente
   useEffect(() => {
-    async function riceviDatiDaBepoli(event) {
+    function riceviDatiDaBepoli(event) {
       if (event.origin !== "https://bepoli.onrender.com") return;
 
       const { id, username, nome, token } = event.data?.dati || {};
+      if (!id || !username || !nome || !token) return;
 
-      if (id && username && nome) {
-        console.log("✅ Dati ricevuti via postMessage:", { id, username, nome });
+      sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
+      sessionStorage.setItem("token", token);
 
-        // Salva in sessionStorage
-        sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
-        if (token) sessionStorage.setItem("token", token);
+      dispatch({
+        type: "SET_USER",
+        user: { uid: id, nome, username },
+        token
+      });
 
-        // Aggiorna lo state globale
-        dispatch({
-          type: "SET_USER",
-          user: { uid: id, nome, username },
-          token: token || null,
-        });
-
-        // Opzionale: invia i dati al backend per impostare la sessione lato server
-        try {
-          const res = await fetch("https://bepoliby-1-2.onrender.com/api/ricevi-dati", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ id, username, nome }),
-          });
-          if (res.ok) {
-            console.log("✅ Sessione backend aggiornata con successo");
-          } else {
-            console.warn("❌ Errore nell'aggiornamento sessione backend");
-          }
-        } catch (err) {
-          console.error("❌ Errore fetch session backend:", err);
-        }
-      } else {
-        console.warn("❌ Dati incompleti ricevuti:", event.data);
-      }
+      fetch(`${API_URL}/api/ricevi-dati`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, username, nome })
+      })
+        .then(res => res.json())
+        .then(data => console.log("✅ Sessione backend aggiornata:", data))
+        .catch(err => console.error("❌ Errore aggiornamento sessione:", err));
     }
 
     window.addEventListener("message", riceviDatiDaBepoli);
+
+    // 🔁 Se possibile, richiedi dati automaticamente al parent
+    if (window.opener) {
+      window.opener.postMessage({ type: "richiediDatiUtente" }, "https://bepoli.onrender.com");
+    }
+
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
 
