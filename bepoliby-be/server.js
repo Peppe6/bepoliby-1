@@ -1,4 +1,5 @@
 
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -9,20 +10,19 @@ const User = require('./model/dbUser');
 const Pusher = require('pusher');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Origini consentite
+// Origini consentite
 const allowedOrigins = [
-  "https://bepoli.onrender.com",
-  "https://bepoliby-1.onrender.com",
+  "https://bepoli.onrender.com",          // frontend principale che manda postMessage
+  "https://bepoliby-1.onrender.com",      // backend messaggistica (stesso dominio)
   "https://bepoliby-1-2.onrender.com",
   "http://localhost:3000"
 ];
 
-// ✅ Config CORS
+// Configurazione CORS
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -40,7 +40,9 @@ app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
 
-// ✅ Config sessione corretta
+// Configurazione sessione
+const isProduction = process.env.NODE_ENV === 'production';
+
 app.use(session({
   secret: process.env.SESSION_SECRET || 'supersecretkey',
   resave: false,
@@ -48,26 +50,13 @@ app.use(session({
   store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
   cookie: {
     httpOnly: true,
-    sameSite: 'none',
-    secure: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,       // true in produzione (https)
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 giorni
   }
 }));
 
-// ✅ CSP (opzionale)
-app.use(helmet.contentSecurityPolicy({
-  useDefaults: true,
-  directives: {
-    defaultSrc: ["'self'"],
-    scriptSrc: ["'self'", "https://translate.google.com", "https://www.gstatic.com", "https://apis.google.com", "'unsafe-inline'"],
-    styleSrc: ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
-    fontSrc: ["'self'", "https://fonts.gstatic.com"],
-    imgSrc: ["'self'", "data:", "https://www.gstatic.com", "https://avatars.dicebear.com", "https://www.gravatar.com", "https://render-prod-avatars.s3.us-west-2.amazonaws.com"],
-    connectSrc: ["'self'", "wss:", "https:", "http://localhost:3000", "http://localhost:9000", "wss://ws-eu.pusher.com"]
-  }
-}));
-
-// ✅ Middleware autenticazione sessione
+// Middleware autenticazione sessione
 function authenticateSession(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ error: "Utente non autenticato. Effettua il login." });
@@ -81,7 +70,7 @@ function authenticateSession(req, res, next) {
   next();
 }
 
-// ✅ Endpoint per ricevere i dati postMessage e salvare la sessione
+// Endpoint per ricevere dati da frontend principale via fetch e impostare sessione
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome } = req.body;
   if (!id || !username || !nome) {
@@ -89,9 +78,13 @@ app.post('/api/ricevi-dati', (req, res) => {
   }
 
   req.session.user = { id, username, nome };
-  res.status(200).json({ message: "Dati ricevuti e sessione impostata" });
+  req.session.save(err => {
+    if (err) return res.status(500).json({ message: "Errore nel salvataggio sessione" });
+    res.status(200).json({ message: "Dati ricevuti e sessione impostata" });
+  });
 });
 
+// Endpoint per controllare sessione utente
 app.get("/api/session/user", (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ message: "Utente non autenticato" });
@@ -99,14 +92,14 @@ app.get("/api/session/user", (req, res) => {
   res.status(200).json({ user: req.session.user });
 });
 
-// ✅ MongoDB
+// MongoDB connect
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ✅ Change stream per messaggi in tempo reale
+// Change stream Pusher realtime (come prima)
 const db = mongoose.connection;
 db.once("open", () => {
   const roomCollection = db.collection("rooms");
@@ -131,7 +124,7 @@ db.once("open", () => {
   });
 });
 
-// ✅ Pusher config
+// Pusher config
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -140,7 +133,7 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// ✅ Endpoint di test
+// Test API
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get("/api", (req, res) => res.send("🎉 Server attivo"));
 
@@ -224,6 +217,5 @@ app.post("/api/v1/rooms/:id/messages", authenticateSession, async (req, res) => 
   }
 });
 
-// ✅ Avvio server
+// Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
-
