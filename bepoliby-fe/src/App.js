@@ -1,4 +1,5 @@
 
+
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -6,7 +7,6 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import jwtDecode from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -16,9 +16,7 @@ function InfoCenter() {
       <div className="info-center-item" />
       <Avatar
         src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}&background=random&color=fff`}
-        onError={(e) => {
-          e.currentTarget.src = "/default-avatar.png";
-        }}
+        onError={(e) => { e.currentTarget.src = "/default-avatar.png"; }}
       />
       <div className="info-center-item" />
       {user?.nome || "Utente"}
@@ -59,7 +57,7 @@ function App() {
 
   // 2️⃣ Ascolta postMessage dal sito principale per dati utente
   useEffect(() => {
-    function riceviDatiDaBepoli(event) {
+    async function riceviDatiDaBepoli(event) {
       if (event.origin !== "https://bepoli.onrender.com") return;
 
       const { id, username, nome, token } = event.data?.dati || {};
@@ -67,14 +65,33 @@ function App() {
       if (id && username && nome) {
         console.log("✅ Dati ricevuti via postMessage:", { id, username, nome });
 
+        // Salva in sessionStorage
         sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
         if (token) sessionStorage.setItem("token", token);
 
+        // Aggiorna lo state globale
         dispatch({
           type: "SET_USER",
           user: { uid: id, nome, username },
           token: token || null,
         });
+
+        // Opzionale: invia i dati al backend per impostare la sessione lato server
+        try {
+          const res = await fetch("https://bepoliby-1-2.onrender.com/api/ricevi-dati", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ id, username, nome }),
+          });
+          if (res.ok) {
+            console.log("✅ Sessione backend aggiornata con successo");
+          } else {
+            console.warn("❌ Errore nell'aggiornamento sessione backend");
+          }
+        } catch (err) {
+          console.error("❌ Errore fetch session backend:", err);
+        }
       } else {
         console.warn("❌ Dati incompleti ricevuti:", event.data);
       }
@@ -100,4 +117,3 @@ function App() {
 }
 
 export default App;
-
