@@ -1,5 +1,4 @@
 
-
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -7,8 +6,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
- import { jwtDecode } from "jwt-decode";  // ✅
-// IMPORT DEFAULT CORRETTO
+import { jwtDecode } from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -33,14 +31,47 @@ function InfoCenter() {
 function App() {
   const [, dispatch] = useStateValue();
 
-  // 1️⃣ Carica da sessionStorage se presente
+  // 🔹 1️⃣ Legge userData dalla URL e salva in sessionStorage
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const userDataEncoded = params.get("userData");
+
+    if (userDataEncoded) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userDataEncoded));
+        console.log("✅ Dati utente ricevuti via URL:", user);
+
+        sessionStorage.setItem("user", JSON.stringify(user));
+
+        if (!sessionStorage.getItem("token")) {
+          const fakeToken = btoa(`${user._id}:${user.username}`);
+          sessionStorage.setItem("token", fakeToken);
+        }
+
+        dispatch({
+          type: "SET_USER",
+          user: {
+            uid: user._id || user.id,
+            nome: user.nome,
+            username: user.username
+          },
+          token: sessionStorage.getItem("token")
+        });
+      } catch (e) {
+        console.error("❌ Errore nel parsing di userData dalla URL:", e);
+      }
+    } else {
+      console.log("⚠️ Nessun parametro userData trovato nella URL");
+    }
+  }, [dispatch]);
+
+  // 🔹 2️⃣ Carica da sessionStorage se presente
   useEffect(() => {
     const token = sessionStorage.getItem("token");
 
     if (typeof token === "string" && token.trim() !== "") {
       try {
         const decoded = jwtDecode(token);
-;
         dispatch({
           type: "SET_USER",
           user: {
@@ -59,7 +90,7 @@ function App() {
     }
   }, [dispatch]);
 
-  // 2️⃣ Riceve i dati via postMessage da bepoli.onrender.com
+  // 🔹 3️⃣ Riceve dati via postMessage da bepoli.onrender.com
   useEffect(() => {
     const riceviDatiDaBepoli = async (event) => {
       if (event.origin !== "https://bepoli.onrender.com") return;
@@ -110,7 +141,7 @@ function App() {
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
 
-  // 3️⃣ 🔥 Fallback: prova a ottenere il token da /api/auth-token
+  // 🔹 4️⃣ Fallback: tenta fetch token automatico
   useEffect(() => {
     const fetchTokenFromMainApp = async () => {
       const existingToken = sessionStorage.getItem("token");
@@ -127,8 +158,7 @@ function App() {
         }
 
         const { token } = await res.json();
-       const decoded = jwtDecode(token);
- ;
+        const decoded = jwtDecode(token);
 
         sessionStorage.setItem("token", token);
         sessionStorage.setItem("user", JSON.stringify(decoded));
