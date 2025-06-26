@@ -1,3 +1,4 @@
+
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -5,7 +6,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import { jwtDecode } from "jwt-decode";
+import jwtDecode from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -30,43 +31,35 @@ function InfoCenter() {
 function App() {
   const [, dispatch] = useStateValue();
 
-  // 1️⃣ Legge da window.opener.sessionStorage
+  // 1️⃣ Carica utente da sessionStorage (se presente)
   useEffect(() => {
-    try {
-      if (window.opener) {
-        const rawUser = window.opener.sessionStorage.getItem("user");
-        if (rawUser) {
-          const user = JSON.parse(rawUser);
-          console.log("✅ Dati utente recuperati da window.opener.sessionStorage:", user);
+    const userString = sessionStorage.getItem("user");
+    const token = sessionStorage.getItem("token");
 
-          sessionStorage.setItem("user", JSON.stringify(user));
-
-          const fakeToken = btoa(`${user._id}:${user.username}`);
-          sessionStorage.setItem("token", fakeToken);
-
-          dispatch({
-            type: "SET_USER",
-            user: {
-              uid: user._id || user.id,
-              nome: user.nome,
-              username: user.username
-            },
-            token: fakeToken
-          });
-        } else {
-          console.warn("⚠️ Nessun user trovato in window.opener.sessionStorage");
-        }
-      } else {
-        console.warn("⚠️ La finestra non è stata aperta con window.open (no window.opener)");
+    if (userString) {
+      try {
+        const userData = JSON.parse(userString);
+        dispatch({
+          type: "SET_USER",
+          user: {
+            uid: userData.id || userData.uid,
+            nome: userData.nome,
+            username: userData.username,
+          },
+          token: token || null,
+        });
+        console.log("✅ Utente caricato da sessionStorage:", userData);
+      } catch {
+        console.warn("⚠️ user in sessionStorage non valido");
       }
-    } catch (e) {
-      console.error("❌ Errore nell'accesso a window.opener.sessionStorage:", e);
+    } else {
+      console.warn("⚠️ Nessun utente in sessionStorage");
     }
   }, [dispatch]);
 
-  // 2️⃣ Legge dati via postMessage da bepoli.onrender.com
+  // 2️⃣ Ascolta postMessage dal sito principale per dati utente
   useEffect(() => {
-    const riceviDatiDaBepoli = async (event) => {
+    function riceviDatiDaBepoli(event) {
       if (event.origin !== "https://bepoli.onrender.com") return;
 
       const { id, username, nome, token } = event.data?.dati || {};
@@ -75,54 +68,20 @@ function App() {
         console.log("✅ Dati ricevuti via postMessage:", { id, username, nome });
 
         sessionStorage.setItem("user", JSON.stringify({ id, username, nome }));
-
-        if (token) {
-          sessionStorage.setItem("token", token);
-        } else {
-          const fakeToken = btoa(`${id}:${username}`);
-          sessionStorage.setItem("token", fakeToken);
-        }
+        if (token) sessionStorage.setItem("token", token);
 
         dispatch({
           type: "SET_USER",
-          user: {
-            uid: id,
-            nome,
-            username
-          },
-          token: sessionStorage.getItem("token")
+          user: { uid: id, nome, username },
+          token: token || null,
         });
       } else {
-        console.warn("❌ Dati incompleti ricevuti via postMessage:", event.data);
+        console.warn("❌ Dati incompleti ricevuti:", event.data);
       }
-    };
+    }
 
     window.addEventListener("message", riceviDatiDaBepoli);
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
-  }, [dispatch]);
-
-  // 3️⃣ Fallback: carica da sessionStorage locale se presente
-  useEffect(() => {
-    const token = sessionStorage.getItem("token");
-    if (typeof token === "string" && token.trim() !== "") {
-      try {
-        const decoded = jwtDecode(token);
-        dispatch({
-          type: "SET_USER",
-          user: {
-            uid: decoded.id || decoded._id,
-            nome: decoded.nome,
-            username: decoded.username
-          },
-          token: token
-        });
-        console.log("✅ Utente caricato da sessionStorage:", decoded);
-      } catch (err) {
-        console.error("❌ Token non valido:", err);
-      }
-    } else {
-      console.warn("⚠️ Nessun token trovato in sessionStorage.");
-    }
   }, [dispatch]);
 
   return (
