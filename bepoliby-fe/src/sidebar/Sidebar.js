@@ -1,4 +1,6 @@
 
+
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -10,7 +12,7 @@ import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
@@ -18,8 +20,9 @@ const Sidebar = () => {
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
 
-  // Imposto l'Authorization header globalmente
+  // ✅ Imposta axios per inviare cookie con ogni richiesta
   useEffect(() => {
+    axios.defaults.withCredentials = true;
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
@@ -27,8 +30,9 @@ const Sidebar = () => {
     }
   }, [token]);
 
+  // ✅ Carica stanze e utenti se autenticato
   useEffect(() => {
-    if (!user?.uid || !token) return;
+    if (!user?.uid) return;
 
     const fetchRooms = async () => {
       try {
@@ -54,10 +58,11 @@ const Sidebar = () => {
 
     fetchRooms();
     fetchUsers();
-  }, [user, token]);
+  }, [user]);
 
+  // ✅ Crea nuova chat tra utenti
   const createChat = async () => {
-    if (!user?.uid || !token) {
+    if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
       return;
     }
@@ -69,8 +74,7 @@ const Sidebar = () => {
       const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
       const altroUtente = res.data;
 
-      const membri = [user.uid, altroUtente.uid];
-
+      const membri = [user.uid, altroUtente.uid || altroUtente.id];
       const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
 
       const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
@@ -144,6 +148,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
-
 
