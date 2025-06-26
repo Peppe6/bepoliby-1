@@ -1,3 +1,9 @@
+
+
+
+
+
+
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -25,7 +31,7 @@ function Chat() {
   };
 
   useEffect(() => {
-    if (!roomId || !user?.id) return;
+    if (!roomId || !user?.uid) return;
 
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe(`room_${roomId}`);
@@ -55,11 +61,11 @@ function Chat() {
       channel.unbind_all();
       channel.unsubscribe();
     };
-  }, [roomId, user?.id]);
+  }, [roomId, user?.uid]);
 
   useEffect(() => {
     const fetchRoomData = async () => {
-      if (!roomId || !user?.id) {
+      if (!roomId || !user?.uid) {
         navigate("/");
         return;
       }
@@ -84,11 +90,11 @@ function Chat() {
     };
 
     fetchRoomData();
-  }, [roomId, user?.id]);
+  }, [roomId, user?.uid]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !user?.id) return;
+    if (!input.trim() || !user?.uid) return;
 
     const tempId = `temp-${Date.now()}`;
     const newMessage = {
@@ -96,7 +102,7 @@ function Chat() {
       message: input,
       name: user.nome || "Utente",
       timestamp: new Date().toISOString(),
-      uid: user.id
+      uid: user.uid
     };
 
     setRoomMessages(prev => [...prev, newMessage]);
@@ -112,6 +118,10 @@ function Chat() {
       alert("Errore nell'invio del messaggio, riprova.");
     }
   };
+
+  if (!user) {
+    return <div className="Chat_loading">Caricamento dati utente...</div>;
+  }
 
   return (
     <div className='Chat' key={roomId}>
@@ -135,14 +145,14 @@ function Chat() {
               : "Mai"}
           </p>
           <p style={{ fontSize: '0.8rem', color: '#666' }}>
-            Sei connesso come <b>{user?.nome || "Utente"}</b>
+            Sei connesso come <b>{user.nome || "Utente"}</b>
           </p>
         </div>
       </div>
 
       <div className="Chat_body">
         {roomMessages.map((message, index) => {
-          const isOwnMessage = message.uid === user?.id;
+          const isOwnMessage = message.uid === user?.uid;
           const isValidDate = !isNaN(new Date(message.timestamp));
 
           return (
@@ -206,8 +216,3 @@ function Chat() {
 }
 
 export default Chat;
-
-
-
-
-
