@@ -1,5 +1,3 @@
-
-// FILE: App.js (frontend sito messaggistica)
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -29,8 +27,9 @@ function InfoCenter() {
 
 function App() {
   const [, dispatch] = useStateValue();
-  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
+  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1-2.onrender.com";
 
+  // Carica utente da sessionStorage
   useEffect(() => {
     const userString = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("token");
@@ -50,6 +49,7 @@ function App() {
     }
   }, [dispatch]);
 
+  // Ricevi dati da Bepoli via postMessage
   useEffect(() => {
     function riceviDatiDaBepoli(event) {
       if (event.origin !== "https://bepoli.onrender.com") return;
@@ -79,13 +79,47 @@ function App() {
 
     window.addEventListener("message", riceviDatiDaBepoli);
 
-    // 🔁 Se possibile, richiedi dati automaticamente al parent
     if (window.opener) {
       window.opener.postMessage({ type: "richiediDatiUtente" }, "https://bepoli.onrender.com");
     }
 
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
-  }, [dispatch]);
+  }, [dispatch, API_URL]);
+
+  // Recupera utente dalla sessione backend se sessionStorage è vuoto
+  useEffect(() => {
+    const userString = sessionStorage.getItem("user");
+    const token = sessionStorage.getItem("token");
+
+    if (!userString && !token) {
+      fetch(`${API_URL}/api/session/user`, {
+        method: "GET",
+        credentials: "include"
+      })
+        .then(res => {
+          if (!res.ok) throw new Error("Sessione non trovata");
+          return res.json();
+        })
+        .then(data => {
+          if (data?.user) {
+            const { id, nome, username } = data.user;
+            const fakeToken = "session";
+
+            sessionStorage.setItem("user", JSON.stringify({ id, nome, username }));
+            sessionStorage.setItem("token", fakeToken);
+
+            dispatch({
+              type: "SET_USER",
+              user: { uid: id, nome, username },
+              token: fakeToken
+            });
+
+            console.log("✅ Utente caricato da sessione backend:", data.user);
+          }
+        })
+        .catch(() => console.log("⚠️ Nessuna sessione attiva nel backend"));
+    }
+  }, [dispatch, API_URL]);
 
   return (
     <div className="app">
