@@ -1,13 +1,12 @@
 
-// FILE: App.js (frontend sito messaggistica)
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
 import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import { jwtDecode } from "jwt-decode";
+import jwtDecode from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -29,7 +28,7 @@ function InfoCenter() {
 
 function App() {
   const [, dispatch] = useStateValue();
-  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1-2.onrender.com";
+  const [loading, setLoading] = useState(true);
 
   // 1️⃣ Carica utente da sessionStorage (token già ricevuto)
   useEffect(() => {
@@ -45,9 +44,13 @@ function App() {
           token
         });
         console.log("✅ Utente caricato da sessionStorage:", userData);
+        setLoading(false);
       } catch {
         console.warn("⚠️ user in sessionStorage non valido");
+        setLoading(false);
       }
+    } else {
+      setLoading(false);
     }
   }, [dispatch]);
 
@@ -76,29 +79,25 @@ function App() {
 
         console.log("✅ Token ricevuto e utente salvato:", { id, nome, username });
 
-        // (opzionale) puoi inviare al backend per logging o tracking
-        /*
-        fetch(`${API_URL}/api/ricevi-dati`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, nome, username })
-        }).catch(err => console.error("❌ Errore aggiornamento sessione:", err));
-        */
+        setLoading(false);
       } catch (err) {
         console.error("❌ Errore decoding token:", err);
+        setLoading(false);
       }
     }
 
     window.addEventListener("message", riceviDatiDaBepoli);
 
-    // 🔁 Invia richiesta token al sito principale
     if (window.opener) {
       window.opener.postMessage({ type: "richiediDatiUtente" }, "https://bepoli.onrender.com");
     }
 
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
+
+  if (loading) {
+    return <div>Caricamento dati utente in corso...</div>;
+  }
 
   return (
     <div className="app">
