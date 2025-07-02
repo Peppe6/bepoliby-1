@@ -1,3 +1,4 @@
+
 // FILE: App.js (frontend sito messaggistica)
 import React, { useEffect } from "react";
 import './App.css';
@@ -6,7 +7,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import jwtdecode from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -59,7 +60,7 @@ function App() {
       if (!token) return;
 
       try {
-        const decoded = jwtdecode(token);
+        const decoded = jwtDecode(token);
         const { id, nome, username } = decoded;
 
         if (!id || !nome || !username) return;
