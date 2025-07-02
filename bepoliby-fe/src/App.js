@@ -59,7 +59,7 @@ function App() {
       if (!token) return;
 
       try {
-        const decoded = jwtDecode(token);
+        const decoded = jwtdecode(token);
         const { id, nome, username } = decoded;
 
         if (!id || !nome || !username) return;
