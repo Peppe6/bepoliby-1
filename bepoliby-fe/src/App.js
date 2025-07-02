@@ -6,7 +6,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import jwtdecode from "jwt-decode";
+import jwtDecode from "jwt-decode";  // <--- correzione qui
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -30,7 +30,6 @@ function App() {
   const [, dispatch] = useStateValue();
   const [loading, setLoading] = useState(true);
 
-  // 1️⃣ Carica utente da sessionStorage (token già ricevuto)
   useEffect(() => {
     const userString = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("token");
@@ -54,7 +53,6 @@ function App() {
     }
   }, [dispatch]);
 
-  // 2️⃣ Ricevi dati dal sito principale (via postMessage)
   useEffect(() => {
     function riceviDatiDaBepoli(event) {
       if (event.origin !== "https://bepoli.onrender.com") return;
@@ -63,7 +61,7 @@ function App() {
       if (!token) return;
 
       try {
-        const decoded = jwtdecode(token);
+        const decoded = jwtDecode(token);  // <--- correzione qui
         const { id, nome, username } = decoded;
 
         if (!id || !nome || !username) return;
@@ -78,7 +76,6 @@ function App() {
         });
 
         console.log("✅ Token ricevuto e utente salvato:", { id, nome, username });
-
         setLoading(false);
       } catch (err) {
         console.error("❌ Errore decoding token:", err);
