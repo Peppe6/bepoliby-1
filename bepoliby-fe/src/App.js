@@ -1,4 +1,6 @@
 
+
+
 // FILE: App.js (frontend sito messaggistica)
 import React, { useEffect } from "react";
 import './App.css';
@@ -16,7 +18,7 @@ function InfoCenter() {
     <div className="info-center">
       <div className="info-center-item" />
       <Avatar
-        src={https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}&background=random&color=fff}
+        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}&background=random&color=fff`}
         onError={(e) => { e.currentTarget.src = "/default-avatar.png"; }}
       />
       <div className="info-center-item" />
@@ -78,7 +80,7 @@ function App() {
 
         // (opzionale) puoi inviare al backend per logging o tracking
         /*
-        fetch(${API_URL}/api/ricevi-dati, {
+        fetch(`${API_URL}/api/ricevi-dati`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -115,6 +117,4 @@ function App() {
   );
 }
 
-export default App
-
-
+export default App;
