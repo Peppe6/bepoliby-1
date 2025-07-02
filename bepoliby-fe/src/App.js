@@ -6,7 +6,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import jwtdecode from "jwt-decode";  // <--- correzione qui
+import jwtDecode from "jwt-decode";  // <--- correzione qui
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
