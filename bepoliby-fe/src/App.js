@@ -1,16 +1,16 @@
 
+// FILE: App.js (versione 4)
 
-
-// FILE: App.js (frontend sito messaggistica)
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
 import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import * as jwtDecode from "jwt-decode";
+import * as jwtDecodeModule from "jwt-decode";
 
+const jwtDecode = jwtDecodeModule.default || jwtDecodeModule;
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -32,9 +32,8 @@ function InfoCenter() {
 
 function App() {
   const [, dispatch] = useStateValue();
-  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1-2.onrender.com";
+  const [loading, setLoading] = useState(true);
 
-  // 1️⃣ Carica utente da sessionStorage (token già ricevuto)
   useEffect(() => {
     const userString = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("token");
@@ -52,9 +51,9 @@ function App() {
         console.warn("⚠️ user in sessionStorage non valido");
       }
     }
+    setLoading(false);
   }, [dispatch]);
 
-  // 2️⃣ Ricevi dati dal sito principale (via postMessage)
   useEffect(() => {
     function riceviDatiDaBepoli(event) {
       if (event.origin !== "https://bepoli.onrender.com") return;
@@ -63,8 +62,7 @@ function App() {
       if (!token) return;
 
       try {
-       const decoded = jwtDecode.default(token);
-
+        const decoded = jwtDecode(token);
         const { id, nome, username } = decoded;
 
         if (!id || !nome || !username) return;
@@ -79,16 +77,6 @@ function App() {
         });
 
         console.log("✅ Token ricevuto e utente salvato:", { id, nome, username });
-
-        // (opzionale) puoi inviare al backend per logging o tracking
-        /*
-        fetch(`${API_URL}/api/ricevi-dati`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, nome, username })
-        }).catch(err => console.error("❌ Errore aggiornamento sessione:", err));
-        */
       } catch (err) {
         console.error("❌ Errore decoding token:", err);
       }
@@ -96,13 +84,16 @@ function App() {
 
     window.addEventListener("message", riceviDatiDaBepoli);
 
-    // 🔁 Invia richiesta token al sito principale
     if (window.opener) {
       window.opener.postMessage({ type: "richiediDatiUtente" }, "https://bepoli.onrender.com");
     }
 
     return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
+
+  if (loading) {
+    return <div>Caricamento dati utente in corso...</div>;
+  }
 
   return (
     <div className="app">
