@@ -9,7 +9,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Cerca utenti con debounce
+  // Gestione input con debounce
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val);
@@ -18,23 +18,41 @@ export default function UserSearch({ currentUserId, onSelect }) {
     setTimeoutId(id);
   };
 
+  // Cerca utenti e invia token JWT
   const searchUsers = async (text) => {
     if (text.length < 1) return setResults([]);
+
+    const token = sessionStorage.getItem("token");
+    if (!token) {
+      console.error("❌ Token mancante in sessionStorage");
+      return;
+    }
+
     try {
       const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(text)}`, {
+        method: "GET",
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         credentials: 'include'
       });
+
+      if (!res.ok) {
+        console.error("❌ Errore nella risposta:", res.status);
+        return;
+      }
+
       const data = await res.json();
       const utenti = Array.isArray(data) ? data : data.results || [];
-      // Il backend già esclude currentUserId, ma nel dubbio:
-      const filtrati = utenti.filter(u => u._id !== currentUserId && u.id !== currentUserId);
+      const filtrati = utenti.filter(u => u._id !== currentUserId);
       setResults(filtrati);
     } catch (err) {
-      console.error("Errore nella ricerca utenti:", err);
+      console.error("❌ Errore nella ricerca utenti:", err);
     }
   };
 
-  // Gestione pressione tasti nella input, per Invio
+  // Invio con tasto Invio
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -59,7 +77,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
       <div className="user-search-results">
         {results.map(user => (
           <div
-            key={user.id || user._id}
+            key={user._id}
             onClick={() => {
               onSelect(user);
               setQuery('');
