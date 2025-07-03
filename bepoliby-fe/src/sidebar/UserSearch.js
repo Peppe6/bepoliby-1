@@ -1,5 +1,5 @@
-// ✅ UserSearch.js (componente React completo e funzionante)
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import './UserSearch.css';
 
 const API_SEARCH_URL = `${process.env.REACT_APP_API_URL}/api/v1/users/search`;
@@ -9,17 +9,25 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Funzione per cercare utenti
+  // Funzione per cercare utenti con token Authorization
   const searchUsers = async (text) => {
     if (!text || text.length < 1) return setResults([]);
     try {
+      const token = sessionStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token mancante");
+      }
+
       const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(text)}`, {
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,  // <-- token nel header
         }
       });
+
       if (!res.ok) throw new Error('Unauthorized');
+
       const data = await res.json();
       const utenti = Array.isArray(data) ? data : data.results || [];
       const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
