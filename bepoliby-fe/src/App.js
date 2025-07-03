@@ -7,10 +7,24 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import * as jwtDecode from "jwt-decode";
 
-
-
+// Funzione homemade per decodificare JWT (solo payload)
+function decodeJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+}
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -41,8 +55,8 @@ function App() {
 
     if (token) {
       try {
-const decoded = jwtDecode(token);
- const { id, nome, username } = decoded;
+        const decoded = decodeJwt(token);
+        const { id, nome, username } = decoded || {};
 
         if (id && nome && username) {
           sessionStorage.setItem("token", token);
@@ -56,7 +70,7 @@ const decoded = jwtDecode(token);
 
           console.log("✅ Token ricevuto da URL e utente impostato:", { id, nome, username });
 
-          // pulisci l'URL
+          // pulisci l'URL per non mostrare più il token
           window.history.replaceState(null, "", window.location.pathname);
         }
       } catch (err) {
