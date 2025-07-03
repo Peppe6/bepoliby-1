@@ -1,4 +1,3 @@
-// FILE: server.js
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -92,12 +91,14 @@ const PusherClient = new Pusher({
 // ✅ TEST
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// ✅ USERS
+// ===== ROTTE UTENTI =====
+
+// Tutti gli utenti tranne l'utente loggato
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const users = await User.find(
-      { id: { $ne: req.user.uid } },
-      { id: 1, nome: 1, username: 1, _id: 0 }
+      { _id: { $ne: req.user.uid } },
+      { _id: 1, nome: 1, username: 1 }
     );
     res.status(200).json(users);
   } catch (err) {
@@ -105,6 +106,7 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
+// Cerca utente per username/email
 app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.email });
@@ -115,7 +117,21 @@ app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ ROOMS
+// Cerca utente per nome (case insensitive)
+app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
+  try {
+    const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");
+    const user = await User.findOne({ nome: nomeRegex });
+    if (!user) return res.status(404).json({ error: "Utente non trovato" });
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ error: "Errore nel recupero utente" });
+  }
+});
+
+// ===== ROTTE STANZE =====
+
+// Lista stanze dove è membro l'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -125,6 +141,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// Dati stanza singola (controllo membro)
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -136,6 +153,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
+// Creazione stanza (evita duplicati con stessi membri)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const { name, members = [] } = req.body;
@@ -143,7 +161,10 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Dati stanza mancanti o insufficienti" });
     }
 
-    const existingRoom = await Rooms.findOne({ members: { $all: members, $size: members.length } });
+    // Verifica se già esiste una stanza con gli stessi membri (indipendentemente dall'ordine)
+    const existingRoom = await Rooms.findOne({
+      members: { $all: members, $size: members.length }
+    });
     if (existingRoom) {
       return res.status(409).json({ error: "Stanza già esistente", roomId: existingRoom._id });
     }
@@ -152,10 +173,12 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
     const data = await Rooms.create(roomData);
     res.status(201).send(data);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Errore nella creazione stanza" });
   }
 });
 
+// Messaggi stanza (controllo membro)
 app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -167,6 +190,7 @@ app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   }
 });
 
+// Invia messaggio stanza (controllo membro)
 app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   try {
     const dbRoom = await Rooms.findById(req.params.id);
