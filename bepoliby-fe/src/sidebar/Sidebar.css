@@ -118,3 +118,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
 } 
+
+.sidebar_users {
+  max-height: 200px;
+  overflow-y: auto;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 10px;
+}
