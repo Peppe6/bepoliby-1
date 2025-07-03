@@ -1,5 +1,5 @@
 
-// FILE: App.js (frontend sito messaggistica)
+// FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -7,7 +7,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-import jwtdecode from "jwt-decode";
+import jwtDecode from "jwt-decode"; // attenzione alla D maiuscola nella libreria
 
 function InfoCenter() {
   const [{ user }] = useStateValue();
@@ -29,9 +29,40 @@ function InfoCenter() {
 
 function App() {
   const [, dispatch] = useStateValue();
-  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1-2.onrender.com";
+  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-  // 1️⃣ Carica utente da sessionStorage (token già ricevuto)
+  // 🔑 1. Se c'è un token nell'URL, salvalo in sessionStorage
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
+
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const { id, nome, username } = decoded;
+
+        if (id && nome && username) {
+          sessionStorage.setItem("token", token);
+          sessionStorage.setItem("user", JSON.stringify({ id, nome, username }));
+
+          dispatch({
+            type: "SET_USER",
+            user: { uid: id, nome, username },
+            token
+          });
+
+          console.log("✅ Token ricevuto da URL e utente impostato:", { id, nome, username });
+
+          // pulisci l'URL
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      } catch (err) {
+        console.error("❌ Errore decoding token dall'URL:", err);
+      }
+    }
+  }, [dispatch]);
+
+  // 📦 2. Se già salvato in sessionStorage, carica utente
   useEffect(() => {
     const userString = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("token");
@@ -44,60 +75,11 @@ function App() {
           user: { uid: userData.id || userData.uid, nome: userData.nome, username: userData.username },
           token
         });
-        console.log("✅ Utente caricato da sessionStorage:", userData);
+        console.log("🟢 Utente caricato da sessionStorage:", userData);
       } catch {
         console.warn("⚠️ user in sessionStorage non valido");
       }
     }
-  }, [dispatch]);
-
-  // 2️⃣ Ricevi dati dal sito principale (via postMessage)
-  useEffect(() => {
-    function riceviDatiDaBepoli(event) {
-      if (event.origin !== "https://bepoli.onrender.com") return;
-
-      const { token } = event.data?.dati || {};
-      if (!token) return;
-
-      try {
-        const decoded = jwtDecode(token);
-        const { id, nome, username } = decoded;
-
-        if (!id || !nome || !username) return;
-
-        sessionStorage.setItem("user", JSON.stringify({ id, nome, username }));
-        sessionStorage.setItem("token", token);
-
-        dispatch({
-          type: "SET_USER",
-          user: { uid: id, nome, username },
-          token
-        });
-
-        console.log("✅ Token ricevuto e utente salvato:", { id, nome, username });
-
-        // (opzionale) puoi inviare al backend per logging o tracking
-        /*
-        fetch(`${API_URL}/api/ricevi-dati`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, nome, username })
-        }).catch(err => console.error("❌ Errore aggiornamento sessione:", err));
-        */
-      } catch (err) {
-        console.error("❌ Errore decoding token:", err);
-      }
-    }
-
-    window.addEventListener("message", riceviDatiDaBepoli);
-
-    // 🔁 Invia richiesta token al sito principale
-    if (window.opener) {
-      window.opener.postMessage({ type: "richiediDatiUtente" }, "https://bepoli.onrender.com");
-    }
-
-    return () => window.removeEventListener("message", riceviDatiDaBepoli);
   }, [dispatch]);
 
   return (
