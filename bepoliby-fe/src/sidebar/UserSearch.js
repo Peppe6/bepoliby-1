@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+// ✅ UserSearch.js (componente React completo e funzionante)
+import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 
 const API_SEARCH_URL = `${process.env.REACT_APP_API_URL}/api/v1/users/search`;
@@ -8,6 +8,27 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
+
+  // Funzione per cercare utenti
+  const searchUsers = async (text) => {
+    if (!text || text.length < 1) return setResults([]);
+    try {
+      const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(text)}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) throw new Error('Unauthorized');
+      const data = await res.json();
+      const utenti = Array.isArray(data) ? data : data.results || [];
+      const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
+      setResults(filtrati);
+    } catch (err) {
+      console.error("Errore nella ricerca utenti:", err);
+      setResults([]);
+    }
+  };
 
   // Gestione input con debounce
   const handleInput = (e) => {
@@ -18,49 +39,12 @@ export default function UserSearch({ currentUserId, onSelect }) {
     setTimeoutId(id);
   };
 
-  // Cerca utenti e invia token JWT
-  const searchUsers = async (text) => {
-    if (text.length < 1) return setResults([]);
-
-    const token = sessionStorage.getItem("token");
-    if (!token) {
-      console.error("❌ Token mancante in sessionStorage");
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(text)}`, {
-        method: "GET",
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include'
-      });
-
-      if (!res.ok) {
-        console.error("❌ Errore nella risposta:", res.status);
-        return;
-      }
-
-      const data = await res.json();
-      const utenti = Array.isArray(data) ? data : data.results || [];
-      const filtrati = utenti.filter(u => u._id !== currentUserId);
-      setResults(filtrati);
-    } catch (err) {
-      console.error("❌ Errore nella ricerca utenti:", err);
-    }
-  };
-
-  // Invio con tasto Invio
+  // Gestione tasto Invio nella barra
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (results.length > 0) {
-        onSelect(results[0]);
-        setQuery('');
-        setResults([]);
-      }
+    if (e.key === 'Enter' && results.length > 0) {
+      onSelect(results[0]);
+      setQuery('');
+      setResults([]);
     }
   };
 
@@ -77,7 +61,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
       <div className="user-search-results">
         {results.map(user => (
           <div
-            key={user._id}
+            key={user.id || user._id}
             onClick={() => {
               onSelect(user);
               setQuery('');
