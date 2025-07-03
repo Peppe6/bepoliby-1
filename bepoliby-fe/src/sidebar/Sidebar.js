@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -10,12 +9,13 @@ import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 
+import UserSearch from './UserSearch'; // Importa il componente UserSearch
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showUserList, setShowUserList] = useState(false);
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
 
@@ -57,36 +57,30 @@ const Sidebar = () => {
     fetchUsers();
   }, [user]);
 
-  const createChat = async () => {
+  const handleUserSelect = async (selectedUser) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
       return;
     }
 
-    const emailAltroUtente = prompt("Inserisci l'email dell'altro utente:");
-    if (!emailAltroUtente) return;
-
     try {
-      const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
-      const altroUtente = res.data;
+      const membri = [user.uid, selectedUser._id];
+      const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
-      const membri = [user.uid, altroUtente._id];
-      const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
-
-      const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
         name: roomName,
         members: membri
       });
 
-      if (roomRes.data?._id) {
-        window.location.href = `/rooms/${roomRes.data._id}`;
+      if (res.data?._id) {
+        window.location.href = `/rooms/${res.data._id}`;
       }
     } catch (err) {
       const data = err.response?.data;
       if (data?.roomId) {
         window.location.href = `/rooms/${data.roomId}`;
       } else {
-        alert("Errore nella creazione della chat. Assicurati che l'utente esista.");
+        alert("Errore nella creazione chat");
       }
     }
   };
@@ -107,69 +101,27 @@ const Sidebar = () => {
         </div>
       </div>
 
+      {/* Campo di ricerca globale per stanze */}
       <div className="sidebar_search">
         <div className="sidebar_search_container">
           <SearchIcon />
           <input
             type="text"
-            placeholder="Cerca o inizia una nuova chat"
+            placeholder="Cerca chat"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
       </div>
 
+      {/* Ricerca utenti e creazione chat */}
+      <div className="sidebar_usersearch">
+        <h4>Inizia una nuova chat</h4>
+        <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
+      </div>
+
+      {/* Chat già esistenti */}
       <div className="sidebar_chats">
-        {/* Pulsante per mostrare lista utenti */}
-        <div className="sidebarChat addNewChat" style={{ cursor: 'pointer' }}>
-          <h3 onClick={createChat}>➕ Chat tramite email</h3>
-          <h4 onClick={() => setShowUserList(prev => !prev)} style={{ marginTop: "5px", color: "#007bff" }}>
-            {showUserList ? "🔽 Nascondi utenti disponibili" : "💬 Mostra utenti disponibili"}
-          </h4>
-        </div>
-
-        {/* Lista utenti cliccabili */}
-        {showUserList && (
-          <div className="sidebar_users">
-            {Object.entries(allUsers).map(([uid, nome]) => {
-              if (uid === user.uid) return null;
-
-              return (
-                <div
-                  key={uid}
-                  className="sidebarChat"
-                  style={{ paddingLeft: "20px", cursor: "pointer" }}
-                  onClick={async () => {
-                    try {
-                      const membri = [user.uid, uid];
-                      const roomName = `${user.nome} - ${nome}`;
-
-                      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
-                        name: roomName,
-                        members: membri
-                      });
-
-                      if (res.data?._id) {
-                        window.location.href = `/rooms/${res.data._id}`;
-                      }
-                    } catch (err) {
-                      const data = err.response?.data;
-                      if (data?.roomId) {
-                        window.location.href = `/rooms/${data.roomId}`;
-                      } else {
-                        alert("Errore nella creazione chat");
-                      }
-                    }
-                  }}
-                >
-                  💬 {nome}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Chat già esistenti */}
         {rooms
           .filter(room => {
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
@@ -198,3 +150,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
