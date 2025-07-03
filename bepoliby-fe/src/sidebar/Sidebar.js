@@ -1,6 +1,5 @@
 
 
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -123,9 +122,11 @@ const Sidebar = () => {
         </div>
 
         {rooms
-          .filter(room =>
-            room.name.toLowerCase().includes(searchTerm.toLowerCase())
-          )
+          .filter(room => {
+            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
+            return displayName.toLowerCase().includes(searchTerm.toLowerCase());
+          })
           .map(room => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
@@ -148,4 +149,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
