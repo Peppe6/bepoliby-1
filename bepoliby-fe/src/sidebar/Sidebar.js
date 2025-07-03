@@ -9,7 +9,7 @@ import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 
-import UserSearch from './UserSearch'; // Importa il componente UserSearch
+import UserSearch from './UserSearch';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
@@ -29,7 +29,7 @@ const Sidebar = () => {
   }, [token]);
 
   useEffect(() => {
-    if (!user?.uid) return;
+    if (!user?.uid) return; // evita chiamate se user non pronto
 
     const fetchRooms = async () => {
       try {
@@ -85,6 +85,14 @@ const Sidebar = () => {
     }
   };
 
+  if (!user) {
+    return <div className="sidebar_loading">Caricamento utente...</div>;
+  }
+
+  if (!user.uid) {
+    return <div className="sidebar_loading">Utente non autenticato</div>;
+  }
+
   return (
     <div className="sidebar">
       <div className="sidebar_header">
@@ -101,7 +109,6 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Campo di ricerca globale per stanze */}
       <div className="sidebar_search">
         <div className="sidebar_search_container">
           <SearchIcon />
@@ -114,13 +121,11 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Ricerca utenti e creazione chat */}
       <div className="sidebar_usersearch">
         <h4>Inizia una nuova chat</h4>
         <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
       </div>
 
-      {/* Chat già esistenti */}
       <div className="sidebar_chats">
         {rooms
           .filter(room => {
@@ -150,4 +155,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
