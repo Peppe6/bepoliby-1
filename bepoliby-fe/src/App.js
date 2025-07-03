@@ -7,7 +7,8 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
-const jwtDecode = require("jwt-decode");
+import jwtDecode from "jwt-decode";
+
 
 
 
