@@ -10,7 +10,12 @@ function verifyToken(req, res, next) {
 
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = user; // ad es. { id, username, name }
+    // Rimappo i campi per coerenza con il resto del codice
+    req.user = {
+      uid: user.id || user.uid,
+      nome: user.name || user.nome,
+      username: user.username || user.email || null
+    };
     next();
   } catch (err) {
     return res.status(403).json({ message: "Invalid token" });
