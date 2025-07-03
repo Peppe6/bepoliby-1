@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -16,10 +15,10 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrend
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showUserList, setShowUserList] = useState(false);
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
 
-  // ✅ Imposta axios per inviare cookie con ogni richiesta
   useEffect(() => {
     axios.defaults.withCredentials = true;
     if (token) {
@@ -29,7 +28,6 @@ const Sidebar = () => {
     }
   }, [token]);
 
-  // ✅ Carica stanze e utenti se autenticato
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -47,7 +45,7 @@ const Sidebar = () => {
         const res = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         res.data.forEach(u => {
-          usersMap[u.uid || u.id] = u.nome || u.username;
+          usersMap[u._id] = u.nome || u.username;
         });
         setAllUsers(usersMap);
       } catch (err) {
@@ -59,7 +57,6 @@ const Sidebar = () => {
     fetchUsers();
   }, [user]);
 
-  // ✅ Crea nuova chat tra utenti
   const createChat = async () => {
     if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
@@ -73,7 +70,7 @@ const Sidebar = () => {
       const res = await axios.get(`${API_BASE_URL}/api/v1/users/email/${emailAltroUtente}`);
       const altroUtente = res.data;
 
-      const membri = [user.uid, altroUtente.uid || altroUtente.id];
+      const membri = [user.uid, altroUtente._id];
       const roomName = `${user.nome} - ${altroUtente.nome || altroUtente.username}`;
 
       const roomRes = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
@@ -81,10 +78,16 @@ const Sidebar = () => {
         members: membri
       });
 
-      setRooms(prev => [...prev, roomRes.data]);
+      if (roomRes.data?._id) {
+        window.location.href = `/rooms/${roomRes.data._id}`;
+      }
     } catch (err) {
-      console.error("❌ Errore nella creazione chat:", err.response?.data || err.message);
-      alert("Errore nella creazione della chat. Assicurati che l'utente esista.");
+      const data = err.response?.data;
+      if (data?.roomId) {
+        window.location.href = `/rooms/${data.roomId}`;
+      } else {
+        alert("Errore nella creazione della chat. Assicurati che l'utente esista.");
+      }
     }
   };
 
@@ -117,10 +120,56 @@ const Sidebar = () => {
       </div>
 
       <div className="sidebar_chats">
-        <div onClick={createChat} className="sidebarChat addNewChat" style={{ cursor: 'pointer' }}>
-          <h3>➕ Inizia una nuova chat</h3>
+        {/* Pulsante per mostrare lista utenti */}
+        <div className="sidebarChat addNewChat" style={{ cursor: 'pointer' }}>
+          <h3 onClick={createChat}>➕ Chat tramite email</h3>
+          <h4 onClick={() => setShowUserList(prev => !prev)} style={{ marginTop: "5px", color: "#007bff" }}>
+            {showUserList ? "🔽 Nascondi utenti disponibili" : "💬 Mostra utenti disponibili"}
+          </h4>
         </div>
 
+        {/* Lista utenti cliccabili */}
+        {showUserList && (
+          <div className="sidebar_users">
+            {Object.entries(allUsers).map(([uid, nome]) => {
+              if (uid === user.uid) return null;
+
+              return (
+                <div
+                  key={uid}
+                  className="sidebarChat"
+                  style={{ paddingLeft: "20px", cursor: "pointer" }}
+                  onClick={async () => {
+                    try {
+                      const membri = [user.uid, uid];
+                      const roomName = `${user.nome} - ${nome}`;
+
+                      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
+                        name: roomName,
+                        members: membri
+                      });
+
+                      if (res.data?._id) {
+                        window.location.href = `/rooms/${res.data._id}`;
+                      }
+                    } catch (err) {
+                      const data = err.response?.data;
+                      if (data?.roomId) {
+                        window.location.href = `/rooms/${data.roomId}`;
+                      } else {
+                        alert("Errore nella creazione chat");
+                      }
+                    }
+                  }}
+                >
+                  💬 {nome}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Chat già esistenti */}
         {rooms
           .filter(room => {
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
