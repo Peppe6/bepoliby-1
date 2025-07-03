@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import './UserSearch.css';
 
-const API_SEARCH_URL = `${process.env.REACT_APP_API_URL}/api/search-users`;
+const API_SEARCH_URL = `${process.env.REACT_APP_API_URL}/api/v1/users/search`;
 
 export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
@@ -25,7 +26,8 @@ export default function UserSearch({ currentUserId, onSelect }) {
       });
       const data = await res.json();
       const utenti = Array.isArray(data) ? data : data.results || [];
-      const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
+      // Il backend già esclude currentUserId, ma nel dubbio:
+      const filtrati = utenti.filter(u => u._id !== currentUserId && u.id !== currentUserId);
       setResults(filtrati);
     } catch (err) {
       console.error("Errore nella ricerca utenti:", err);
@@ -36,7 +38,6 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      // Se c’è almeno un risultato, seleziona il primo
       if (results.length > 0) {
         onSelect(results[0]);
         setQuery('');
@@ -52,7 +53,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
         placeholder="Cerca utente per username..."
         value={query}
         onChange={handleInput}
-        onKeyDown={handleKeyDown}  // <- aggiunto
+        onKeyDown={handleKeyDown}
         autoComplete="off"
       />
       <div className="user-search-results">
@@ -65,7 +66,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
               setResults([]);
             }}
             className="user-result"
-            tabIndex={0}  // per accessibilità tastiera
+            tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
