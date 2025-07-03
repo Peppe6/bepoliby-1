@@ -129,6 +129,34 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   }
 });
 
+// Nuovo endpoint: cerca utenti per query libera su username o nome (case insensitive)
+app.get("/api/v1/users/search", verifyToken, async (req, res) => {
+  const q = req.query.q || "";
+  if (!q.trim()) return res.json([]);
+
+  try {
+    const regex = new RegExp(q, "i");
+    const users = await User.find(
+      { 
+        $and: [
+          { _id: { $ne: req.user.uid } }, // esclude utente loggato
+          { 
+            $or: [
+              { username: regex },
+              { nome: regex }
+            ]
+          }
+        ]
+      },
+      { _id: 1, nome: 1, username: 1, profilePicUrl: 1 }
+    ).limit(10);
+    res.json(users);
+  } catch (err) {
+    console.error("Errore ricerca utenti:", err);
+    res.status(500).json({ error: "Errore ricerca utenti" });
+  }
+});
+
 // ===== ROTTE STANZE =====
 
 // Lista stanze dove è membro l'utente
