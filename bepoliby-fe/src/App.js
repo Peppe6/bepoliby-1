@@ -1,4 +1,3 @@
-
 // FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
@@ -8,7 +7,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
 
-// Funzione homemade per decodificare JWT (solo payload)
 function decodeJwt(token) {
   try {
     const base64Url = token.split('.')[1];
@@ -45,10 +43,9 @@ function InfoCenter() {
 }
 
 function App() {
-  const [, dispatch] = useStateValue();
+  const [{ user }, dispatch] = useStateValue();
   const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-  // 🔑 1. Se c'è un token nell'URL, salvalo in sessionStorage
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get("token");
@@ -70,7 +67,6 @@ function App() {
 
           console.log("✅ Token ricevuto da URL e utente impostato:", { id, nome, username });
 
-          // pulisci l'URL per non mostrare più il token
           window.history.replaceState(null, "", window.location.pathname);
         }
       } catch (err) {
@@ -79,7 +75,6 @@ function App() {
     }
   }, [dispatch]);
 
-  // 📦 2. Se già salvato in sessionStorage, carica utente
   useEffect(() => {
     const userString = sessionStorage.getItem("user");
     const token = sessionStorage.getItem("token");
@@ -103,11 +98,17 @@ function App() {
     <div className="app">
       <div className="app_body">
         <Router>
-          <Sidebar />
-          <Routes>
-            <Route path="/" element={<InfoCenter />} />
-            <Route path="/rooms/:roomId" element={<Chat />} />
-          </Routes>
+          {user ? (
+            <>
+              <Sidebar />
+              <Routes>
+                <Route path="/" element={<InfoCenter />} />
+                <Route path="/rooms/:roomId" element={<Chat />} />
+              </Routes>
+            </>
+          ) : (
+            <div className="app_loading">Caricamento utente...</div>
+          )}
         </Router>
       </div>
     </div>
@@ -115,3 +116,4 @@ function App() {
 }
 
 export default App;
+
