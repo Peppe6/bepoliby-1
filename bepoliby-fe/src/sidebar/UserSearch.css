@@ -1,56 +1,64 @@
 .user-search {
-  padding: 10px 16px;
+  padding: 12px 18px;
   border-top: 1px solid #e0e0e0;
-  background-color: #f9f9f9;
+  background-color: #fafafa;
 }
 
 .user-search input[type="text"] {
   width: 100%;
-  padding: 10px 14px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1.5px solid #bbb;
+  border-radius: 12px;
   font-size: 15px;
   outline: none;
-  transition: border 0.2s ease;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  background-color: #fff;
 }
 
 .user-search input[type="text"]:focus {
   border-color: #007bff;
+  box-shadow: 0 0 6px rgba(0, 123, 255, 0.4);
 }
 
 .user-search-results {
-  margin-top: 10px;
-  max-height: 250px;
+  margin-top: 12px;
+  max-height: 260px;
   overflow-y: auto;
+  padding-right: 6px; /* per scrollbar */
 }
 
 .user-result {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px;
-  background: white;
+  gap: 14px;
+  padding: 12px 14px;
+  background: #fff;
   border: 1px solid #ddd;
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 10px;
+  margin-bottom: 10px;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.user-result:hover {
-  background-color: #f1f1f1;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+.user-result:hover,
+.user-result:focus-visible {
+  background-color: #f5faff;
+  box-shadow: 0 3px 8px rgba(0, 123, 255, 0.15);
+  outline: none;
 }
 
 .user-result img {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #ccc;
+  border: 2.5px solid #bbb;
+  flex-shrink: 0;
 }
 
 .user-result strong {
-  font-size: 15px;
-  color: #333;
+  font-size: 15.5px;
+  color: #222;
+  user-select: none;
 }
+
