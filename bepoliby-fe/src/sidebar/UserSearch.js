@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import './UserSearch.css';
 
@@ -9,7 +8,6 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Funzione per cercare utenti con token Authorization
   const searchUsers = async (text) => {
     if (!text || text.length < 1) return setResults([]);
     try {
@@ -22,7 +20,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,  // <-- token nel header
+          'Authorization': `Bearer ${token}`,
         }
       });
 
@@ -30,7 +28,8 @@ export default function UserSearch({ currentUserId, onSelect }) {
 
       const data = await res.json();
       const utenti = Array.isArray(data) ? data : data.results || [];
-      const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
+
+      const filtrati = utenti.filter(u => u._id !== currentUserId);
       setResults(filtrati);
     } catch (err) {
       console.error("Errore nella ricerca utenti:", err);
@@ -38,7 +37,6 @@ export default function UserSearch({ currentUserId, onSelect }) {
     }
   };
 
-  // Gestione input con debounce
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val);
@@ -47,12 +45,19 @@ export default function UserSearch({ currentUserId, onSelect }) {
     setTimeoutId(id);
   };
 
-  // Gestione tasto Invio nella barra
+  const handleUserClick = (user) => {
+    if (!user || !user._id) {
+      console.warn("Utente non valido selezionato:", user);
+      return;
+    }
+    onSelect(user);
+    setQuery('');
+    setResults([]);
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && results.length > 0) {
-      onSelect(results[0]);
-      setQuery('');
-      setResults([]);
+      handleUserClick(results[0]);
     }
   };
 
@@ -69,25 +74,19 @@ export default function UserSearch({ currentUserId, onSelect }) {
       <div className="user-search-results">
         {results.map(user => (
           <div
-            key={user.id || user._id}
-            onClick={() => {
-              onSelect(user);
-              setQuery('');
-              setResults([]);
-            }}
+            key={user._id}
+            onClick={() => handleUserClick(user)}
             className="user-result"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onSelect(user);
-                setQuery('');
-                setResults([]);
+                handleUserClick(user);
               }
             }}
           >
             <img src={user.profilePicUrl || "/default-avatar.png"} alt="avatar" />
-            <strong>{user.username}</strong>
+            <strong>{user.username || user.nome}</strong>
           </div>
         ))}
       </div>
