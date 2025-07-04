@@ -3,7 +3,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
+const session = require('express-session'); // ✅ sessione utente
 const Pusher = require('pusher');
+const jwt = require('jsonwebtoken');
 const verifyToken = require('./verifyToken');
 
 const Rooms = require('./model/dbRooms');
@@ -12,7 +14,17 @@ const User = require('./model/dbUser');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// CORS
+// ✅ Middleware
+app.use(express.json());
+app.use(helmet());
+app.use(session({
+  secret: process.env.SESSION_SECRET || "supersecret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // usa true in produzione con HTTPS
+}));
+
+// ✅ CORS
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
@@ -20,7 +32,7 @@ const allowedOrigins = [
   "http://localhost:3000"
 ];
 
-const corsOptions = {
+app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -31,20 +43,7 @@ const corsOptions = {
   credentials: true,
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
-};
-
-app.use(cors(corsOptions));
-app.use(helmet());
-app.use(express.json());
-
-// ✅ Endpoint test ricezione utente
-app.post('/api/ricevi-dati', (req, res) => {
-  const { id, username, nome } = req.body;
-  if (!id || !username || !nome) {
-    return res.status(400).json({ message: "Dati utente mancanti" });
-  }
-  res.status(200).json({ message: "Dati ricevuti correttamente" });
-});
+}));
 
 // ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI, {
@@ -86,11 +85,35 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
+// ✅ TEST
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
+
+app.post('/api/ricevi-dati', (req, res) => {
+  const { id, username, nome } = req.body;
+  if (!id || !username || !nome) {
+    return res.status(400).json({ message: "Dati utente mancanti" });
+  }
+  res.status(200).json({ message: "Dati ricevuti correttamente" });
+});
+
+// ✅ Rotta per generare il token JWT dopo login
+app.get("/api/auth-token", (req, res) => {
+  const sessionUser = req.session?.user;
+  if (!sessionUser || !sessionUser._id || !sessionUser.username) {
+    return res.status(401).json({ message: "Utente non autenticato" });
+  }
+
+  const token = jwt.sign({
+    id: sessionUser._id.toString(),
+    nome: sessionUser.nome,
+    username: sessionUser.username
+  }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+  res.json({ token });
+});
 
 // ===== ROTTE UTENTI =====
 
-// ✅ Tutti gli utenti tranne quello loggato
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const currentUserId = mongoose.Types.ObjectId.isValid(req.user.uid)
@@ -109,7 +132,6 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Cerca per email/username
 app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.email });
@@ -120,7 +142,6 @@ app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Cerca per nome
 app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   try {
     const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");
@@ -132,7 +153,6 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Cerca utenti (search bar)
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   const q = req.query.q || "";
   if (!q.trim()) return res.json([]);
@@ -168,7 +188,6 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
 
 // ===== ROTTE STANZE =====
 
-// ✅ Lista stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -178,7 +197,6 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Dati singola stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -190,7 +208,6 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Crea stanza
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const { name, members = [] } = req.body;
@@ -215,7 +232,6 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Ottieni messaggi
 app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -227,7 +243,6 @@ app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Invia messaggio
 app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   try {
     const dbRoom = await Rooms.findById(req.params.id);
@@ -251,5 +266,7 @@ app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   }
 });
 
+// ✅ Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
+
 
