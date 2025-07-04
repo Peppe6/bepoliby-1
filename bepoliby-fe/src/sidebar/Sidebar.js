@@ -85,6 +85,49 @@ const Sidebar = () => {
     }
   };
 
+  // Funzione per inviare messaggio automatico a un utente dato il nome
+  const sendMessageToUser = async (username, message) => {
+    if (!user?.uid) {
+      alert("Devi effettuare il login per inviare messaggi.");
+      return;
+    }
+
+    // Trova utente da allUsers
+    const selectedUserEntry = Object.entries(allUsers).find(([id, nome]) => nome === username);
+    if (!selectedUserEntry) {
+      alert("Utente non trovato");
+      return;
+    }
+    const [selectedUserId, selectedUserName] = selectedUserEntry;
+
+    try {
+      // 1. Crea o prendi stanza
+      const membri = [user.uid, selectedUserId];
+      const roomName = `${user.nome} - ${selectedUserName}`;
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
+        name: roomName,
+        members: membri
+      });
+
+      const roomId = res.data._id || res.data.roomId;
+      if (!roomId) throw new Error("ID stanza mancante");
+
+      // 2. Invia messaggio nella stanza
+      await axios.post(`${API_BASE_URL}/api/v1/rooms/${roomId}/messages`, {
+        message,
+        name: user.nome,
+        timestamp: new Date().toISOString(),
+        uid: user.uid
+      });
+
+      // 3. Vai alla chat
+      window.location.href = `/rooms/${roomId}`;
+
+    } catch (err) {
+      alert("Errore invio messaggio: " + (err.response?.data?.message || err.message));
+    }
+  };
+
   if (!user) {
     return <div className="sidebar_loading">Caricamento utente...</div>;
   }
@@ -126,6 +169,16 @@ const Sidebar = () => {
         <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
       </div>
 
+      {/* Bottone di esempio per inviare messaggio automatico a "prova13" */}
+      <div style={{ padding: '0 16px', marginBottom: 10 }}>
+        <button
+          onClick={() => sendMessageToUser("prova13", "Ciao, questo è un messaggio automatico!")}
+          style={{ width: '100%', padding: '8px', fontSize: '1rem', cursor: 'pointer' }}
+        >
+          Invia messaggio automatico a prova13
+        </button>
+      </div>
+
       <div className="sidebar_chats">
         {rooms
           .filter(room => {
@@ -155,4 +208,5 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
