@@ -1,10 +1,8 @@
-const mongoose = require('mongoose');
-
 const messageSchema = new mongoose.Schema({
   message: String,
   name: String,
   timestamp: Date,
-  uid: String
+  uid: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 
 const roomSchema = new mongoose.Schema({
@@ -18,12 +16,10 @@ const roomSchema = new mongoose.Schema({
     default: null
   },
   members: {
-    type: [String], // array di UID
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     required: true
   }
 });
-
-module.exports = mongoose.model('Rooms', roomSchema);
 
 
 
