@@ -1,5 +1,5 @@
 
-
+const mongoose = require('mongoose');
 
 const utenteSchema = new mongoose.Schema({
   nome: String,
@@ -14,4 +14,8 @@ const utenteSchema = new mongoose.Schema({
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }],
   utentiRecenti: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }]
 });
-const Utente = mongoose.model("Utente", utenteSchema);
+
+// ✅ Aggiungi indice per la ricerca testuale
+utenteSchema.index({ username: 'text', nome: 'text' });
+
+module.exports = mongoose.model("Utente", utenteSchema);
