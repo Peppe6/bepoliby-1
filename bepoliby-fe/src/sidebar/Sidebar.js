@@ -8,6 +8,7 @@ import { Avatar, IconButton } from "@mui/material";
 import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
+
 import UserSearch from './UserSearch';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
@@ -28,7 +29,7 @@ const Sidebar = () => {
   }, [token]);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.uid) return; // evita chiamate se user non pronto
 
     const fetchRooms = async () => {
       try {
@@ -44,7 +45,7 @@ const Sidebar = () => {
         const res = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         res.data.forEach(u => {
-          usersMap[u.id] = u.nome || u.username;
+          usersMap[u._id] = u.nome || u.username;
         });
         setAllUsers(usersMap);
       } catch (err) {
@@ -57,20 +58,13 @@ const Sidebar = () => {
   }, [user]);
 
   const handleUserSelect = async (selectedUser) => {
-    const currentUserId = user?.id;
-
-    if (!currentUserId) {
+    if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
       return;
     }
 
-    if (!selectedUser?.id) {
-      alert("Errore: utente selezionato non valido.");
-      return;
-    }
-
     try {
-      const membri = [currentUserId, selectedUser.id];
+      const membri = [user.uid, selectedUser._id];
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
       const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
@@ -78,16 +72,14 @@ const Sidebar = () => {
         members: membri
       });
 
-      if (res.data?.id || res.data?._id) {
-        const roomId = res.data.id || res.data._id;
-        window.location.href = `/rooms/${roomId}`;
+      if (res.data?._id) {
+        window.location.href = `/rooms/${res.data._id}`;
       }
     } catch (err) {
       const data = err.response?.data;
       if (data?.roomId) {
         window.location.href = `/rooms/${data.roomId}`;
       } else {
-        console.error("Errore creazione chat:", err);
         alert("Errore nella creazione chat");
       }
     }
@@ -97,7 +89,7 @@ const Sidebar = () => {
     return <div className="sidebar_loading">Caricamento utente...</div>;
   }
 
-  if (!user.id) {
+  if (!user.uid) {
     return <div className="sidebar_loading">Utente non autenticato</div>;
   }
 
@@ -131,22 +123,22 @@ const Sidebar = () => {
 
       <div className="sidebar_usersearch">
         <h4>Inizia una nuova chat</h4>
-        <UserSearch currentUserId={user.id} onSelect={handleUserSelect} />
+        <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
       </div>
 
       <div className="sidebar_chats">
         {rooms
           .filter(room => {
-            const otherUserId = (room.members || []).find(uid => uid !== user.id);
-            const displayName = otherUserId ? (allUsers[otherUserId] || room.name) : room.name;
+            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
             return displayName.toLowerCase().includes(searchTerm.toLowerCase());
           })
           .map(room => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
 
-            const otherUserId = (room.members || []).find(uid => uid !== user.id);
-            const displayName = otherUserId ? (allUsers[otherUserId] || room.name) : room.name;
+            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
             return (
               <SidebarChat
