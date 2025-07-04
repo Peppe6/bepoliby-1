@@ -10,5 +10,7 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
-module.exports = mongoose.model('User', userSchema);
+// Aggiungi un indice per ottimizzare la ricerca per username
+userSchema.index({ username: 'text' });
 
+module.exports = mongoose.model('User', userSchema);
