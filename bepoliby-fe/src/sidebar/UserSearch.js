@@ -11,6 +11,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const searchUsers = async (text) => {
     if (!text || text.length < 1) return setResults([]);
     try {
+      // Prendi il token da sessionStorage (o cambialo se usi context)
       const token = sessionStorage.getItem("token");
       if (!token) {
         throw new Error("Token mancante");
@@ -27,9 +28,11 @@ export default function UserSearch({ currentUserId, onSelect }) {
       if (!res.ok) throw new Error('Unauthorized');
 
       const data = await res.json();
+      // Assumi che l'array di utenti sia in data oppure data.results
       const utenti = Array.isArray(data) ? data : data.results || [];
 
-      const filtrati = utenti.filter(u => u._id !== currentUserId);
+      // Filtra l'utente corrente dalla lista risultati
+      const filtrati = utenti.filter(u => u.id !== currentUserId);
       setResults(filtrati);
     } catch (err) {
       console.error("Errore nella ricerca utenti:", err);
@@ -46,7 +49,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
   };
 
   const handleUserClick = (user) => {
-    if (!user || !user._id) {
+    if (!user || !user.id) {
       console.warn("Utente non valido selezionato:", user);
       return;
     }
@@ -74,7 +77,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
       <div className="user-search-results">
         {results.map(user => (
           <div
-            key={user._id}
+            key={user.id}
             onClick={() => handleUserClick(user)}
             className="user-result"
             tabIndex={0}
@@ -93,3 +96,4 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
