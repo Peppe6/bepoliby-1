@@ -8,7 +8,6 @@ import { Avatar, IconButton } from "@mui/material";
 import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
-
 import UserSearch from './UserSearch';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
@@ -29,7 +28,7 @@ const Sidebar = () => {
   }, [token]);
 
   useEffect(() => {
-    if (!user?.uid) return; // evita chiamate se user non pronto
+    if (!user?._id) return;
 
     const fetchRooms = async () => {
       try {
@@ -58,13 +57,20 @@ const Sidebar = () => {
   }, [user]);
 
   const handleUserSelect = async (selectedUser) => {
-    if (!user?.uid) {
+    const currentUserId = user?._id;
+
+    if (!currentUserId) {
       alert("Devi effettuare il login per iniziare una chat.");
       return;
     }
 
+    if (!selectedUser?._id) {
+      alert("Errore: utente selezionato non valido.");
+      return;
+    }
+
     try {
-      const membri = [user.uid, selectedUser._id];
+      const membri = [currentUserId, selectedUser._id];
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
       const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
@@ -80,6 +86,7 @@ const Sidebar = () => {
       if (data?.roomId) {
         window.location.href = `/rooms/${data.roomId}`;
       } else {
+        console.error("Errore creazione chat:", err);
         alert("Errore nella creazione chat");
       }
     }
@@ -89,7 +96,7 @@ const Sidebar = () => {
     return <div className="sidebar_loading">Caricamento utente...</div>;
   }
 
-  if (!user.uid) {
+  if (!user._id) {
     return <div className="sidebar_loading">Utente non autenticato</div>;
   }
 
@@ -123,13 +130,13 @@ const Sidebar = () => {
 
       <div className="sidebar_usersearch">
         <h4>Inizia una nuova chat</h4>
-        <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
+        <UserSearch currentUserId={user._id} onSelect={handleUserSelect} />
       </div>
 
       <div className="sidebar_chats">
         {rooms
           .filter(room => {
-            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const otherUserUid = (room.members || []).find(uid => uid !== user._id);
             const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
             return displayName.toLowerCase().includes(searchTerm.toLowerCase());
           })
@@ -137,7 +144,7 @@ const Sidebar = () => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
 
-            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+            const otherUserUid = (room.members || []).find(uid => uid !== user._id);
             const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
             return (
