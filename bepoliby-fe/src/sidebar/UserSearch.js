@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import './UserSearch.css';
 
@@ -9,9 +8,14 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
 
-  // Funzione per cercare utenti con token Authorization
   const searchUsers = async (text) => {
-    if (!text || text.length < 1) return setResults([]);
+    if (!text || text.length < 1) {
+      setResults([]);
+      return;
+    }
+
+    console.log("🔎 Sto cercando:", text);
+
     try {
       const token = sessionStorage.getItem("token");
       if (!token) {
@@ -22,23 +26,31 @@ export default function UserSearch({ currentUserId, onSelect }) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,  // <-- token nel header
+          'Authorization': `Bearer ${token}`,
         }
       });
 
-      if (!res.ok) throw new Error('Unauthorized');
+      console.log("📡 Chiamata API:", res.status, res.url);
+
+      if (!res.ok) {
+        console.error("❌ Errore fetch:", res.status);
+        throw new Error('Unauthorized');
+      }
 
       const data = await res.json();
+      console.log("✅ Dati ricevuti:", data);
+
       const utenti = Array.isArray(data) ? data : data.results || [];
       const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
+      console.log("🎯 Utenti filtrati:", filtrati);
+
       setResults(filtrati);
     } catch (err) {
-      console.error("Errore nella ricerca utenti:", err);
+      console.error("❌ Errore nella ricerca utenti:", err);
       setResults([]);
     }
   };
 
-  // Gestione input con debounce
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val);
@@ -47,9 +59,9 @@ export default function UserSearch({ currentUserId, onSelect }) {
     setTimeoutId(id);
   };
 
-  // Gestione tasto Invio nella barra
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && results.length > 0) {
+      console.log("↩️ Invio selezione:", results[0]);
       onSelect(results[0]);
       setQuery('');
       setResults([]);
@@ -71,6 +83,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
           <div
             key={user.id || user._id}
             onClick={() => {
+              console.log("🖱 Utente cliccato:", user);
               onSelect(user);
               setQuery('');
               setResults([]);
@@ -94,4 +107,5 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
 
