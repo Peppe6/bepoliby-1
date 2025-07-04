@@ -1,3 +1,5 @@
+const jwt = require("jsonwebtoken");
+
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -16,7 +18,8 @@ function verifyToken(req, res, next) {
     console.log("User decoded from token:", user);
 
     req.user = {
-      id: user.id,           // QUI
+      id: user.id,
+      uid: user.id, // ✅ PATCH: compatibilità con codice esistente
       nome: user.nome,
       username: user.username
     };
@@ -28,4 +31,5 @@ function verifyToken(req, res, next) {
 }
 
 module.exports = verifyToken;
+
 
