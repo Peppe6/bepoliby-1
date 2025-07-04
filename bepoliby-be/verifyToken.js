@@ -1,4 +1,3 @@
-const jwt = require("jsonwebtoken");
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -15,21 +14,25 @@ function verifyToken(req, res, next) {
 
   try {
     const user = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("User decoded from token:", user);
+    console.log("✅ Utente decodificato dal token:", user);
 
+    // 🔥 Normalizza i campi
     req.user = {
-      id: user.id,
-      uid: user.id, // ✅ PATCH: compatibilità con codice esistente
+      id: user.ID || user.id || user._id,
+      uid: user.ID || user.id || user._id,
       nome: user.nome,
-      username: user.username
+      username: user["nome utente"] || user.username || user.email
     };
+
+    if (!req.user.uid) {
+      return res.status(401).json({ message: "Token non valido (manca uid)" });
+    }
+
     next();
   } catch (err) {
     console.log("Token invalid:", err.message);
     return res.status(403).json({ message: "Invalid token" });
   }
 }
-
-module.exports = verifyToken;
 
 
