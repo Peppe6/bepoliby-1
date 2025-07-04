@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const Pusher = require('pusher');
-const verifyToken = require('./verifyToken'); // Funzionerà senza errori
+const verifyToken = require('./verifyToken');
 
 const Rooms = require('./model/dbRooms');
 const User = require('./model/dbUser');
@@ -37,24 +37,23 @@ app.use(cors(corsOptions));
 app.use(helmet());
 app.use(express.json());
 
-// ✅ Ricevi i dati utente e verifica
+// ✅ Endpoint test ricezione utente
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome } = req.body;
   if (!id || !username || !nome) {
     return res.status(400).json({ message: "Dati utente mancanti" });
   }
-  // Non serve salvare in sessione, conferma ricezione
   res.status(200).json({ message: "Dati ricevuti correttamente" });
 });
 
-// ✅ MONGO
+// ✅ MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 }).then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ✅ PUSHER CHANGE STREAM
+// ✅ Pusher setup
 const db = mongoose.connection;
 db.once("open", () => {
   const roomCollection = db.collection("rooms");
@@ -79,7 +78,6 @@ db.once("open", () => {
   });
 });
 
-// ✅ PUSHER
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -88,25 +86,30 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// ✅ TEST
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
 // ===== ROTTE UTENTI =====
 
-// Tutti gli utenti tranne l'utente loggato
+// ✅ Tutti gli utenti tranne quello loggato
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
+    const currentUserId = mongoose.Types.ObjectId.isValid(req.user.uid)
+      ? new mongoose.Types.ObjectId(req.user.uid)
+      : req.user.uid;
+
     const users = await User.find(
-      { _id: { $ne: req.user.uid } },
+      { _id: { $ne: currentUserId } },
       { _id: 1, nome: 1, username: 1 }
     );
+
     res.status(200).json(users);
   } catch (err) {
+    console.error("Errore nel recupero utenti:", err);
     res.status(500).json({ error: "Errore nel recupero utenti" });
   }
 });
 
-// Cerca utente per username/email
+// ✅ Cerca per email/username
 app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.email });
@@ -117,7 +120,7 @@ app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   }
 });
 
-// Cerca utente per nome (case insensitive)
+// ✅ Cerca per nome
 app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   try {
     const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");
@@ -129,18 +132,23 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   }
 });
 
-// Nuovo endpoint: cerca utenti per query libera su username o nome (case insensitive)
+// ✅ Cerca utenti (search bar)
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   const q = req.query.q || "";
   if (!q.trim()) return res.json([]);
 
   try {
     const regex = new RegExp(q, "i");
+
+    const currentUserId = mongoose.Types.ObjectId.isValid(req.user.uid)
+      ? new mongoose.Types.ObjectId(req.user.uid)
+      : req.user.uid;
+
     const users = await User.find(
-      { 
+      {
         $and: [
-          { _id: { $ne: req.user.uid } }, // esclude utente loggato
-          { 
+          { _id: { $ne: currentUserId } },
+          {
             $or: [
               { username: regex },
               { nome: regex }
@@ -150,6 +158,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
       },
       { _id: 1, nome: 1, username: 1, profilePicUrl: 1 }
     ).limit(10);
+
     res.json(users);
   } catch (err) {
     console.error("Errore ricerca utenti:", err);
@@ -159,7 +168,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
 
 // ===== ROTTE STANZE =====
 
-// Lista stanze dove è membro l'utente
+// ✅ Lista stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -169,7 +178,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// Dati stanza singola (controllo membro)
+// ✅ Dati singola stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -181,7 +190,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// Creazione stanza (evita duplicati con stessi membri)
+// ✅ Crea stanza
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const { name, members = [] } = req.body;
@@ -189,10 +198,10 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Dati stanza mancanti o insufficienti" });
     }
 
-    // Verifica se già esiste una stanza con gli stessi membri (indipendentemente dall'ordine)
     const existingRoom = await Rooms.findOne({
       members: { $all: members, $size: members.length }
     });
+
     if (existingRoom) {
       return res.status(409).json({ error: "Stanza già esistente", roomId: existingRoom._id });
     }
@@ -201,12 +210,12 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
     const data = await Rooms.create(roomData);
     res.status(201).send(data);
   } catch (err) {
-    console.error(err);
+    console.error("Errore nella creazione stanza:", err);
     res.status(500).json({ error: "Errore nella creazione stanza" });
   }
 });
 
-// Messaggi stanza (controllo membro)
+// ✅ Ottieni messaggi
 app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.id);
@@ -218,7 +227,7 @@ app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   }
 });
 
-// Invia messaggio stanza (controllo membro)
+// ✅ Invia messaggio
 app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
   try {
     const dbRoom = await Rooms.findById(req.params.id);
@@ -243,3 +252,4 @@ app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
 });
 
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
+
