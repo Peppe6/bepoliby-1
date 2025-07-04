@@ -1,3 +1,4 @@
+const jwt = require("jsonwebtoken");
 
 function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -16,12 +17,11 @@ function verifyToken(req, res, next) {
     const user = jwt.verify(token, process.env.JWT_SECRET);
     console.log("✅ Utente decodificato dal token:", user);
 
-    // 🔥 Normalizza i campi
+    // Normalizza campi user
     req.user = {
-      id: user.ID || user.id || user._id,
       uid: user.ID || user.id || user._id,
-      nome: user.nome,
-      username: user["nome utente"] || user.username || user.email
+      nome: user.nome || null,
+      username: user["nome utente"] || user.username || user.email || null
     };
 
     if (!req.user.uid) {
@@ -34,6 +34,8 @@ function verifyToken(req, res, next) {
     return res.status(403).json({ message: "Invalid token" });
   }
 }
+
 module.exports = verifyToken;
+
 
 
