@@ -3,7 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
-const session = require('express-session'); // ✅ sessione utente
+const session = require('express-session');
 const Pusher = require('pusher');
 const jwt = require('jsonwebtoken');
 const verifyToken = require('./verifyToken');
@@ -114,17 +114,13 @@ app.get("/api/auth-token", (req, res) => {
 
 // ===== ROTTE UTENTI =====
 
-app.get("/api/v1/users", verifyToken, async (req, res) => {
+// Rotte senza protezione del token
+app.get("/api/v1/users", async (req, res) => {
   try {
-    const currentUserId = mongoose.Types.ObjectId.isValid(req.user.uid)
-      ? new mongoose.Types.ObjectId(req.user.uid)
-      : req.user.uid;
-
     const users = await User.find(
-      { _id: { $ne: currentUserId } },
+      {},  // Nessuna limitazione sugli utenti (tutti)
       { _id: 1, nome: 1, username: 1 }
     );
-
     res.status(200).json(users);
   } catch (err) {
     console.error("Errore nel recupero utenti:", err);
@@ -132,6 +128,28 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
+app.get("/api/v1/users/search", async (req, res) => {
+  const q = req.query.q || "";
+  if (!q.trim()) return res.json([]);
+
+  try {
+    const regex = new RegExp(q, "i");
+
+    const users = await User.find(
+      {
+        username: regex,
+      },
+      { _id: 1, nome: 1, username: 1, profilePicUrl: 1 }
+    ).limit(10);
+
+    res.json(users);
+  } catch (err) {
+    console.error("Errore ricerca utenti:", err);
+    res.status(500).json({ error: "Errore ricerca utenti" });
+  }
+});
+
+// Rotte protette da token
 app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.email });
@@ -150,39 +168,6 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
     res.status(200).json(user);
   } catch (err) {
     res.status(500).json({ error: "Errore nel recupero utente" });
-  }
-});
-
-app.get("/api/v1/users/search", verifyToken, async (req, res) => {
-  const q = req.query.q || "";
-  if (!q.trim()) return res.json([]);
-
-  try {
-    const regex = new RegExp(q, "i");
-
-    const currentUserId = mongoose.Types.ObjectId.isValid(req.user.uid)
-      ? new mongoose.Types.ObjectId(req.user.uid)
-      : req.user.uid;
-
-    const users = await User.find(
-      {
-        $and: [
-          { _id: { $ne: currentUserId } },
-          {
-            $or: [
-              { username: regex },
-              { nome: regex }
-            ]
-          }
-        ]
-      },
-      { _id: 1, nome: 1, username: 1, profilePicUrl: 1 }
-    ).limit(10);
-
-    res.json(users);
-  } catch (err) {
-    console.error("Errore ricerca utenti:", err);
-    res.status(500).json({ error: "Errore ricerca utenti" });
   }
 });
 
@@ -208,63 +193,6 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-app.post("/api/v1/rooms", verifyToken, async (req, res) => {
-  try {
-    const { name, members = [] } = req.body;
-    if (!name || members.length < 2) {
-      return res.status(400).json({ error: "Dati stanza mancanti o insufficienti" });
-    }
-
-    const existingRoom = await Rooms.findOne({
-      members: { $all: members, $size: members.length }
-    });
-
-    if (existingRoom) {
-      return res.status(409).json({ error: "Stanza già esistente", roomId: existingRoom._id });
-    }
-
-    const roomData = { name, members, messages: [], lastMessageTimestamp: null };
-    const data = await Rooms.create(roomData);
-    res.status(201).send(data);
-  } catch (err) {
-    console.error("Errore nella creazione stanza:", err);
-    res.status(500).json({ error: "Errore nella creazione stanza" });
-  }
-});
-
-app.get("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
-  try {
-    const room = await Rooms.findById(req.params.id);
-    if (!room) return res.status(404).json({ message: "Room not found" });
-    if (!room.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
-    res.status(200).json(room.messages || []);
-  } catch (err) {
-    res.status(500).json({ error: "Errore nel recupero messaggi" });
-  }
-});
-
-app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
-  try {
-    const dbRoom = await Rooms.findById(req.params.id);
-    if (!dbRoom) return res.status(404).json({ message: "Room not found" });
-    if (!dbRoom.members.includes(req.user.uid)) return res.status(403).json({ message: "Access denied" });
-
-    const newMessage = {
-      message: req.body.message,
-      name: req.user.nome,
-      timestamp: new Date().toISOString(),
-      uid: req.user.uid
-    };
-
-    dbRoom.messages.push(newMessage);
-    dbRoom.lastMessageTimestamp = new Date();
-    await dbRoom.save();
-
-    res.status(201).json(newMessage);
-  } catch (err) {
-    res.status(500).json({ error: "Errore nell'invio messaggio" });
-  }
-});
 // ✅ DEBUG: Mostra tutti gli utenti dal database collegato
 app.get("/api/debug/users", async (req, res) => {
   try {
@@ -279,5 +207,6 @@ app.get("/api/debug/users", async (req, res) => {
 
 // ✅ Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
+
 
 
