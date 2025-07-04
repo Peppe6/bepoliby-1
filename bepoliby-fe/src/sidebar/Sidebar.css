@@ -1,5 +1,3 @@
-
-
 .sidebar { 
   display: flex;
   flex-direction: column;
@@ -125,3 +123,62 @@
   border-bottom: 1px solid #ddd;
   margin-bottom: 10px;
 }
+
+/* AGGIUNTO: Stili per la ricerca utenti */
+
+.sidebar_usersearch {
+  padding: 10px 20px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f9f9f9;
+}
+
+.user-search {
+  position: relative;
+  margin-top: 5px;
+}
+
+.user-search input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  font-size: 14px;
+  outline: none;
+}
+
+.user-search-results {
+  margin-top: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.user-result {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.user-result:hover,
+.user-result:focus {
+  background-color: #f0f0f0;
+}
+
+.user-result img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-result strong {
+  font-size: 14px;
+  color: #333;
+}
+
