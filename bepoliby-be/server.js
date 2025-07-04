@@ -265,6 +265,17 @@ app.post("/api/v1/rooms/:id/messages", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Errore nell'invio messaggio" });
   }
 });
+// ✅ DEBUG: Mostra tutti gli utenti dal database collegato
+app.get("/api/debug/users", async (req, res) => {
+  try {
+    const utenti = await User.find({}, "_id username nome");
+    console.log("🧠 Utenti nel DB:", utenti);
+    res.json(utenti);
+  } catch (err) {
+    console.error("❌ Errore nel debug utenti:", err);
+    res.status(500).json({ error: "Errore nel recupero utenti" });
+  }
+});
 
 // ✅ Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
