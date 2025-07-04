@@ -17,11 +17,10 @@ function verifyToken(req, res, next) {
     const user = jwt.verify(token, process.env.JWT_SECRET);
     console.log("✅ Utente decodificato dal token:", user);
 
-    // Normalizza campi user
     req.user = {
-      uid: user.ID || user.id || user._id,
+      uid: user.id || user._id || user.ID || null,
       nome: user.nome || null,
-      username: user["nome utente"] || user.username || user.email || null
+      username: user.username || user.email || null
     };
 
     if (!req.user.uid) {
@@ -36,6 +35,7 @@ function verifyToken(req, res, next) {
 }
 
 module.exports = verifyToken;
+
 
 
 
