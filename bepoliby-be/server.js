@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -15,17 +14,17 @@ const User = require('./model/dbUser');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// ✅ Middleware
+// Middleware
 app.use(express.json());
 app.use(helmet());
 app.use(session({
   secret: process.env.SESSION_SECRET || "supersecret",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // usa true in produzione con HTTPS
+  cookie: { secure: false } // true in produzione con HTTPS
 }));
 
-// ✅ CORS
+// CORS
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
@@ -46,14 +45,14 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// ✅ MongoDB
+// MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true,
+  useUnifiedTopology: true
 }).then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// ✅ Pusher setup
+// Pusher setup
 const db = mongoose.connection;
 db.once("open", () => {
   const roomCollection = db.collection("rooms");
@@ -86,9 +85,10 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-// ✅ TEST
+// TEST
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
+// Ricezione dati da sessione (non usato attualmente)
 app.post('/api/ricevi-dati', (req, res) => {
   const { id, username, nome } = req.body;
   if (!id || !username || !nome) {
@@ -97,7 +97,7 @@ app.post('/api/ricevi-dati', (req, res) => {
   res.status(200).json({ message: "Dati ricevuti correttamente" });
 });
 
-// ✅ Rotta per generare il token JWT dopo login
+// Generazione token JWT
 app.get("/api/auth-token", (req, res) => {
   const sessionUser = req.session?.user;
   if (!sessionUser || !sessionUser._id || !sessionUser.username) {
@@ -113,45 +113,51 @@ app.get("/api/auth-token", (req, res) => {
   res.json({ token });
 });
 
-// ===== ROTTE UTENTI =====
+// ============================
+//         ROTTE UTENTI
+// ============================
 
-// Rotte senza protezione del token
+// ✅ Ricerca utenti senza token (con paginazione)
+app.get("/api/v1/users/search", async (req, res) => {
+  const query = req.query.q;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  if (!query) {
+    return res.status(400).json({ message: "Query mancante" });
+  }
+
+  try {
+    const regex = new RegExp(query, 'i');
+
+    const results = await User.find(
+      { $or: [{ username: regex }, { nome: regex }] },
+      'username nome _id'
+    )
+      .skip(skip)
+      .limit(limit);
+
+    res.json(results.map(u => ({
+      id: u._id,
+      username: u.username,
+      nome: u.nome,
+      profilePicUrl: `/api/user-photo/${u._id}`
+    })));
+  } catch (err) {
+    console.error("❌ Errore ricerca utenti:", err);
+    res.status(500).json({ message: "Errore ricerca" });
+  }
+});
+
+// ✅ Lista utenti (senza token)
 app.get("/api/v1/users", async (req, res) => {
   try {
-    const users = await User.find(
-      {},  // Nessuna limitazione sugli utenti (tutti)
-      { _id: 1, nome: 1, username: 1 }
-    );
+    const users = await User.find({}, { _id: 1, nome: 1, username: 1 });
     res.status(200).json(users);
   } catch (err) {
     console.error("Errore nel recupero utenti:", err);
     res.status(500).json({ error: "Errore nel recupero utenti" });
-  }
-});
-
-app.get("/api/v1/users/search", async (req, res) => {
-  const q = req.query.q || "";
-  console.log("Ricerca utenti con query:", q);
-  if (!q.trim()) return res.json([]);
-
-  try {
-    const regex = new RegExp(q, "i");
-
-    const users = await User.find(
-      {
-        $or: [
-          { username: regex },
-          { nome: regex }
-        ]
-      },
-      { _id: 1, nome: 1, username: 1, avatar: 1 }  // restituisci avatar se è presente
-    ).limit(10);
-
-    console.log("Utenti trovati:", users);
-    res.json(users);
-  } catch (err) {
-    console.error("Errore ricerca utenti:", err);
-    res.status(500).json({ error: "Errore ricerca utenti" });
   }
 });
 
@@ -177,7 +183,9 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   }
 });
 
-// ===== ROTTE STANZE =====
+// ============================
+//         ROTTE STANZE
+// ============================
 
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
@@ -199,7 +207,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ DEBUG: Mostra tutti gli utenti dal database collegato
+// Debug: Mostra tutti gli utenti
 app.get("/api/debug/users", async (req, res) => {
   try {
     const utenti = await User.find({}, "_id username nome");
@@ -211,7 +219,8 @@ app.get("/api/debug/users", async (req, res) => {
   }
 });
 
-// ✅ Avvio server
+// Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
+
 
 
