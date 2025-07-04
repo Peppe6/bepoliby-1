@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import './UserSearch.css';
 
@@ -8,10 +9,10 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
 
+  // Funzione per cercare utenti con token Authorization
   const searchUsers = async (text) => {
     if (!text || text.length < 1) return setResults([]);
     try {
-      // Prendi il token da sessionStorage (o cambialo se usi context)
       const token = sessionStorage.getItem("token");
       if (!token) {
         throw new Error("Token mancante");
@@ -21,18 +22,15 @@ export default function UserSearch({ currentUserId, onSelect }) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${token}`,  // <-- token nel header
         }
       });
 
       if (!res.ok) throw new Error('Unauthorized');
 
       const data = await res.json();
-      // Assumi che l'array di utenti sia in data oppure data.results
       const utenti = Array.isArray(data) ? data : data.results || [];
-
-      // Filtra l'utente corrente dalla lista risultati
-      const filtrati = utenti.filter(u => u.id !== currentUserId);
+      const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
       setResults(filtrati);
     } catch (err) {
       console.error("Errore nella ricerca utenti:", err);
@@ -40,6 +38,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
     }
   };
 
+  // Gestione input con debounce
   const handleInput = (e) => {
     const val = e.target.value;
     setQuery(val);
@@ -48,19 +47,12 @@ export default function UserSearch({ currentUserId, onSelect }) {
     setTimeoutId(id);
   };
 
-  const handleUserClick = (user) => {
-    if (!user || !user.id) {
-      console.warn("Utente non valido selezionato:", user);
-      return;
-    }
-    onSelect(user);
-    setQuery('');
-    setResults([]);
-  };
-
+  // Gestione tasto Invio nella barra
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && results.length > 0) {
-      handleUserClick(results[0]);
+      onSelect(results[0]);
+      setQuery('');
+      setResults([]);
     }
   };
 
@@ -77,19 +69,25 @@ export default function UserSearch({ currentUserId, onSelect }) {
       <div className="user-search-results">
         {results.map(user => (
           <div
-            key={user.id}
-            onClick={() => handleUserClick(user)}
+            key={user.id || user._id}
+            onClick={() => {
+              onSelect(user);
+              setQuery('');
+              setResults([]);
+            }}
             className="user-result"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                handleUserClick(user);
+                onSelect(user);
+                setQuery('');
+                setResults([]);
               }
             }}
           >
             <img src={user.profilePicUrl || "/default-avatar.png"} alt="avatar" />
-            <strong>{user.username || user.nome}</strong>
+            <strong>{user.username}</strong>
           </div>
         ))}
       </div>
