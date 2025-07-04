@@ -16,9 +16,9 @@ function verifyToken(req, res, next) {
     console.log("User decoded from token:", user);
 
     req.user = {
-      uid: user.id || user.uid,
-      nome: user.name || user.nome,
-      username: user.username || user.email || null
+      id: user.id,           // QUI
+      nome: user.nome,
+      username: user.username
     };
     next();
   } catch (err) {
@@ -26,4 +26,6 @@ function verifyToken(req, res, next) {
     return res.status(403).json({ message: "Invalid token" });
   }
 }
+
 module.exports = verifyToken;
+
