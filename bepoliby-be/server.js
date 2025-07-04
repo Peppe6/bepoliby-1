@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const Pusher = require('pusher');
-const verifyToken = require('./verifyToken'); // ✅ Middleware JWT
+const verifyToken = require('./verifyToken'); // Funzionerà senza errori
 
 const Rooms = require('./model/dbRooms');
 const User = require('./model/dbUser');
