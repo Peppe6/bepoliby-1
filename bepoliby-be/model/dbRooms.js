@@ -1,3 +1,6 @@
+
+const mongoose = require('mongoose');
+
 const messageSchema = new mongoose.Schema({
   message: String,
   name: String,
@@ -21,6 +24,6 @@ const roomSchema = new mongoose.Schema({
   }
 });
 
-
+module.exports = mongoose.model('Room', roomSchema);
 
 
