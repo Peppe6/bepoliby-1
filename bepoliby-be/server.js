@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -130,6 +131,7 @@ app.get("/api/v1/users", async (req, res) => {
 
 app.get("/api/v1/users/search", async (req, res) => {
   const q = req.query.q || "";
+  console.log("Ricerca utenti con query:", q);
   if (!q.trim()) return res.json([]);
 
   try {
@@ -137,11 +139,15 @@ app.get("/api/v1/users/search", async (req, res) => {
 
     const users = await User.find(
       {
-        username: regex,
+        $or: [
+          { username: regex },
+          { nome: regex }
+        ]
       },
-      { _id: 1, nome: 1, username: 1, profilePicUrl: 1 }
+      { _id: 1, nome: 1, username: 1, avatar: 1 }  // restituisci avatar se è presente
     ).limit(10);
 
+    console.log("Utenti trovati:", users);
     res.json(users);
   } catch (err) {
     console.error("Errore ricerca utenti:", err);
@@ -207,6 +213,5 @@ app.get("/api/debug/users", async (req, res) => {
 
 // ✅ Avvio server
 app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
-
 
 
