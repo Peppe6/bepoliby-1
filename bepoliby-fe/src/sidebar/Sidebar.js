@@ -8,7 +8,6 @@ import { Avatar, IconButton } from "@mui/material";
 import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
-
 import UserSearch from './UserSearch';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
@@ -19,6 +18,7 @@ const Sidebar = () => {
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
 
+  // Configura le intestazioni di axios
   useEffect(() => {
     axios.defaults.withCredentials = true;
     if (token) {
@@ -28,35 +28,30 @@ const Sidebar = () => {
     }
   }, [token]);
 
+  // Recupera stanze e utenti solo se l'utente è autenticato
   useEffect(() => {
-    if (!user?.uid) return; // evita chiamate se user non pronto
+    if (!user?.uid) return; // Evita chiamate se l'utente non è loggato
 
-    const fetchRooms = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
-        setRooms(response.data);
-      } catch (error) {
-        console.error("❌ Errore nel caricamento stanze:", error.response?.data || error.message);
-      }
-    };
+        const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
+        setRooms(roomsRes.data);
 
-    const fetchUsers = async () => {
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/v1/users`);
+        const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
-        res.data.forEach(u => {
+        usersRes.data.forEach(u => {
           usersMap[u._id] = u.nome || u.username;
         });
         setAllUsers(usersMap);
       } catch (err) {
-        console.error("❌ Errore nel caricamento utenti:", err.response?.data || err.message);
+        console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
       }
     };
 
-    fetchRooms();
-    fetchUsers();
+    fetchData();
   }, [user]);
 
+  // Gestisce la selezione di un utente per creare una nuova chat
   const handleUserSelect = async (selectedUser) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
@@ -67,11 +62,7 @@ const Sidebar = () => {
       const membri = [user.uid, selectedUser._id];
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
-      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
-        name: roomName,
-        members: membri
-      });
-
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
       if (res.data?._id) {
         window.location.href = `/rooms/${res.data._id}`;
       }
@@ -85,14 +76,14 @@ const Sidebar = () => {
     }
   };
 
-  // Funzione per inviare messaggio automatico a un utente dato il nome
+  // Funzione per inviare un messaggio automatico
   const sendMessageToUser = async (username, message) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per inviare messaggi.");
       return;
     }
 
-    // Trova utente da allUsers
+    // Trova l'utente nella lista
     const selectedUserEntry = Object.entries(allUsers).find(([id, nome]) => nome === username);
     if (!selectedUserEntry) {
       alert("Utente non trovato");
@@ -101,18 +92,14 @@ const Sidebar = () => {
     const [selectedUserId, selectedUserName] = selectedUserEntry;
 
     try {
-      // 1. Crea o prendi stanza
       const membri = [user.uid, selectedUserId];
       const roomName = `${user.nome} - ${selectedUserName}`;
-      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
-        name: roomName,
-        members: membri
-      });
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
 
       const roomId = res.data._id || res.data.roomId;
       if (!roomId) throw new Error("ID stanza mancante");
 
-      // 2. Invia messaggio nella stanza
+      // Invia il messaggio
       await axios.post(`${API_BASE_URL}/api/v1/rooms/${roomId}/messages`, {
         message,
         name: user.nome,
@@ -120,9 +107,7 @@ const Sidebar = () => {
         uid: user.uid
       });
 
-      // 3. Vai alla chat
       window.location.href = `/rooms/${roomId}`;
-
     } catch (err) {
       alert("Errore invio messaggio: " + (err.response?.data?.message || err.message));
     }
@@ -169,7 +154,7 @@ const Sidebar = () => {
         <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
       </div>
 
-      {/* Bottone di esempio per inviare messaggio automatico a "prova13" */}
+      {/* Bottone per inviare messaggio automatico a un utente specifico */}
       <div style={{ padding: '0 16px', marginBottom: 10 }}>
         <button
           onClick={() => sendMessageToUser("prova13", "Ciao, questo è un messaggio automatico!")}
@@ -189,7 +174,6 @@ const Sidebar = () => {
           .map(room => {
             const messages = room.messages || [];
             const lastMessage = messages[messages.length - 1]?.message || "";
-
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
             const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
@@ -208,5 +192,6 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
 
