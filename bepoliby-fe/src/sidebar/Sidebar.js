@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -17,6 +18,7 @@ const Sidebar = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
+  const [loading, setLoading] = useState(true); // Stato per il caricamento
 
   // Configura le intestazioni di axios
   useEffect(() => {
@@ -34,6 +36,7 @@ const Sidebar = () => {
 
     const fetchData = async () => {
       try {
+        setLoading(true); // Inizia il caricamento
         const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
@@ -45,6 +48,8 @@ const Sidebar = () => {
         setAllUsers(usersMap);
       } catch (err) {
         console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
+      } finally {
+        setLoading(false); // Termina il caricamento
       }
     };
 
@@ -113,11 +118,11 @@ const Sidebar = () => {
     }
   };
 
-  if (!user) {
-    return <div className="sidebar_loading">Caricamento utente...</div>;
+  if (loading) {
+    return <div className="sidebar_loading">Caricamento...</div>;
   }
 
-  if (!user.uid) {
+  if (!user) {
     return <div className="sidebar_loading">Utente non autenticato</div>;
   }
 
