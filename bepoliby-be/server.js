@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -187,6 +188,7 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
 //         ROTTE STANZE
 // ============================
 
+// Ottenere le stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -196,6 +198,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// Ottenere i dettagli di una stanza specifica
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -207,20 +210,60 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// Debug: Mostra tutti gli utenti
-app.get("/api/debug/users", async (req, res) => {
+// Inviare un messaggio in una stanza
+app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
+  const { roomId } = req.params;
+  const { message } = req.body;
+
+  // Verifica che il messaggio sia stato fornito
+  if (!message) {
+    return res.status(400).json({ error: "Messaggio mancante" });
+  }
+
   try {
-    const utenti = await User.find({}, "_id username nome");
-    console.log("🧠 Utenti nel DB:", utenti);
-    res.json(utenti);
+    // Trova la stanza a cui inviare il messaggio
+    const room = await Rooms.findById(roomId);
+    if (!room) return res.status(404).json({ error: "Stanza non trovata" });
+
+    // Verifica che l'utente sia membro della stanza
+    if (!room.members.includes(req.user.uid)) {
+      return res.status(403).json({ error: "Accesso negato" });
+    }
+
+    // Crea il nuovo messaggio
+    const newMessage = {
+      message,
+      name: req.user.nome || req.user.username || "Anonimo",  // Usa il nome utente o il nome vero
+      timestamp: new Date(),
+      uid: req.user.uid,  // L'utente che invia il messaggio
+    };
+
+    // Aggiungi il messaggio nella stanza
+    room.messages.push(newMessage);
+    room.lastMessageTimestamp = new Date();  // Aggiorna il timestamp dell'ultimo messaggio
+
+    // Salva la stanza aggiornata
+    await room.save();
+
+    // Rispondi con il messaggio appena inviato
+    res.status(201).json(newMessage);
+
+    // Invia il messaggio in tempo reale (opzionale, tramite Pusher)
+    PusherClient.trigger(`room_${roomId}`, "inserted", {
+      roomId,
+      message: newMessage
+    });
+
   } catch (err) {
-    console.error("❌ Errore nel debug utenti:", err);
-    res.status(500).json({ error: "Errore nel recupero utenti" });
+    console.error("Errore nell'aggiunta del messaggio:", err);
+    res.status(500).json({ error: "Errore interno nel salvataggio del messaggio" });
   }
 });
 
-// Avvio server
-app.listen(port, () => console.log(`🚀 Server avviato sulla porta ${port}`));
+// Start server
+app.listen(port, () => {
+  console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
+});
 
 
 
