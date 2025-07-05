@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './UserSearch.css'; // CSS personalizzato
 
-const API_SEARCH_URL = `${process.env.REACT_APP_BACKEND_MAIN_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
+const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
+
 
 const LIMIT = 10;
 
