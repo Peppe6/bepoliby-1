@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const verifyToken = require('./verifyToken');
 
 const Rooms = require('./model/dbRooms');
-const User = require('./model/dbUser');
+const User = require('./model/dbUser'); // modello Utente sito principale
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -31,7 +31,6 @@ const allowedOrigins = [
   "https://bepoliby-1-2.onrender.com",
   "http://localhost:3000"
 ];
-
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -88,16 +87,21 @@ db.once("open", () => {
 // TEST
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// Ricezione dati da sessione (non usato attualmente)
-app.post('/api/ricevi-dati', (req, res) => {
-  const { id, username, nome } = req.body;
-  if (!id || !username || !nome) {
-    return res.status(400).json({ message: "Dati utente mancanti" });
+// Serve immagine profilo da buffer
+app.get('/api/user-photo/:userId', async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user || !user.profilePic || !user.profilePic.data) {
+      return res.status(404).send('No image');
+    }
+    res.set('Content-Type', user.profilePic.contentType);
+    res.send(user.profilePic.data);
+  } catch (err) {
+    res.status(500).send('Errore server');
   }
-  res.status(200).json({ message: "Dati ricevuti correttamente" });
 });
 
-// Generazione token JWT
+// Generazione token JWT da sessione
 app.get("/api/auth-token", (req, res) => {
   const sessionUser = req.session?.user;
   if (!sessionUser || !sessionUser._id || !sessionUser.username) {
@@ -117,7 +121,7 @@ app.get("/api/auth-token", (req, res) => {
 //         ROTTE UTENTI
 // ============================
 
-// Ricerca utenti senza token (con paginazione)
+// Ricerca utenti con paginazione (senza token)
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
   const page = parseInt(req.query.page) || 1;
@@ -130,7 +134,6 @@ app.get("/api/v1/users/search", async (req, res) => {
 
   try {
     const regex = new RegExp(query, 'i');
-
     const results = await User.find(
       { $or: [{ username: regex }, { nome: regex }] },
       'username nome _id'
@@ -142,7 +145,7 @@ app.get("/api/v1/users/search", async (req, res) => {
       id: u._id,
       username: u.username,
       nome: u.nome,
-      profilePicUrl: `/api/user-photo/${u._id}` // aggiunto backtick e slash corretto
+      profilePicUrl: `/api/user-photo/${u._id}`
     })));
   } catch (err) {
     console.error("❌ Errore ricerca utenti:", err);
@@ -174,7 +177,7 @@ app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
 
 app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   try {
-    const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");  // aggiunti backtick e escape corretto
+    const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");
     const user = await User.findOne({ nome: nomeRegex });
     if (!user) return res.status(404).json({ error: "Utente non trovato" });
     res.status(200).json(user);
@@ -187,7 +190,6 @@ app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
 //         ROTTE STANZE
 // ============================
 
-// Ottenere le stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -197,7 +199,6 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// Ottenere i dettagli di una stanza specifica
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -209,7 +210,6 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// Inviare un messaggio in una stanza
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
