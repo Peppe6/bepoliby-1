@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -21,10 +20,9 @@ const Sidebar = () => {
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
   const [loading, setLoading] = useState(true);
-  const { roomId } = useParams(); // ← prende la stanza attuale dall'URL
+  const { roomId } = useParams();
   const navigate = useNavigate();
 
-  // Imposta l’header con il token
   useEffect(() => {
     axios.defaults.withCredentials = true;
     if (token) {
@@ -85,41 +83,6 @@ const Sidebar = () => {
     }
   };
 
-  const sendMessageToUser = async (username, message) => {
-    if (!user?.uid) {
-      alert("Devi effettuare il login per inviare messaggi.");
-      return;
-    }
-
-    const selectedUserEntry = Object.entries(allUsers).find(([id, nome]) => nome === username);
-    if (!selectedUserEntry) {
-      alert("Utente non trovato");
-      return;
-    }
-
-    const [selectedUserId, selectedUserName] = selectedUserEntry;
-
-    try {
-      const membri = [user.uid, selectedUserId];
-      const roomName = `${user.nome} - ${selectedUserName}`;
-      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
-
-      const newRoomId = res.data._id || res.data.roomId;
-      if (!newRoomId) throw new Error("ID stanza mancante");
-
-      await axios.post(`${API_BASE_URL}/api/v1/rooms/${newRoomId}/messages`, {
-        message,
-        name: user.nome,
-        timestamp: new Date().toISOString(),
-        uid: user.uid
-      });
-
-      navigate(`/rooms/${newRoomId}`);
-    } catch (err) {
-      alert("Errore invio messaggio: " + (err.response?.data?.message || err.message));
-    }
-  };
-
   if (loading) {
     return <div className="sidebar_loading">Caricamento...</div>;
   }
@@ -161,15 +124,6 @@ const Sidebar = () => {
         <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
       </div>
 
-      <div style={{ padding: '0 16px', marginBottom: 10 }}>
-        <button
-          onClick={() => sendMessageToUser("prova13", "Ciao, questo è un messaggio automatico!")}
-          style={{ width: '100%', padding: '8px', fontSize: '1rem', cursor: 'pointer' }}
-        >
-          Invia messaggio automatico a prova13
-        </button>
-      </div>
-
       <div className="sidebar_chats">
         {rooms
           .filter(room => {
@@ -189,7 +143,7 @@ const Sidebar = () => {
                 id={room._id}
                 name={displayName}
                 lastMessageText={lastMessage}
-                selected={roomId === room._id} // ✅ evidenzia la chat attiva
+                selected={roomId === room._id}
               />
             );
           })}
