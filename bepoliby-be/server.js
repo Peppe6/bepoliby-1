@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -22,7 +21,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "supersecret",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false }
+  cookie: { secure: false } // in produzione mettere true se https
 }));
 
 // CORS
@@ -184,6 +183,7 @@ app.get("/api/v1/users", async (req, res) => {
 
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
+    // Mostra stanze dove l'utente è membro, ordinate per ultimo messaggio
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
   } catch (err) {
