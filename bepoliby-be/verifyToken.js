@@ -1,14 +1,20 @@
 
+
+
+
 const jwt = require("jsonwebtoken");
 
 const verifyToken = (req, res, next) => {
-  // Se la rotta non richiede un token (es. la ricerca utenti), prosegui senza verificarlo
-  if (req.path === "/api/v1/users" || req.path === "/api/v1/users/search") {
+  // Rotte pubbliche, che non richiedono autenticazione
+  const publicPaths = ["/api/v1/auth/login", "/api/v1/auth/register"];
+
+  if (publicPaths.includes(req.path)) {
     return next();
   }
 
-  const token = req.headers["authorization"]?.split(" ")[1]; // Recupera il token da Authorization header
-  
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
   if (!token) {
     return res.status(401).json({ message: "Token mancante" });
   }
@@ -18,17 +24,12 @@ const verifyToken = (req, res, next) => {
       return res.status(403).json({ message: "Token non valido" });
     }
 
-    // Aggiungi il payload del token (i dati dell'utente) all'oggetto della richiesta
-    req.user = decoded;
+    req.user = decoded; // Aggiungo i dati utente alla request
     next();
   });
 };
 
 module.exports = verifyToken;
-
-
-
-
 
 
 
