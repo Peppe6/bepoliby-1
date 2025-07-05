@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -9,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const verifyToken = require('./verifyToken');
 
 const Rooms = require('./model/dbRooms');
-const User = require('./model/dbUser'); // modello Utente sito principale
+const Utente = require('./model/dbUser'); // ✅ Usa il modello corretto
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -21,7 +22,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "supersecret",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // true in produzione con HTTPS
+  cookie: { secure: false }
 }));
 
 // CORS
@@ -84,13 +85,13 @@ db.once("open", () => {
   });
 });
 
-// TEST
+// Test route
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// Serve immagine profilo da buffer
+// ✅ Serve immagine profilo da buffer
 app.get('/api/user-photo/:userId', async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId);
+    const user = await Utente.findById(req.params.userId);
     if (!user || !user.profilePic || !user.profilePic.data) {
       return res.status(404).send('No image');
     }
@@ -101,7 +102,7 @@ app.get('/api/user-photo/:userId', async (req, res) => {
   }
 });
 
-// Generazione token JWT da sessione
+// ✅ Generazione token JWT da sessione
 app.get("/api/auth-token", (req, res) => {
   const sessionUser = req.session?.user;
   if (!sessionUser || !sessionUser._id || !sessionUser.username) {
@@ -121,68 +122,59 @@ app.get("/api/auth-token", (req, res) => {
 //         ROTTE UTENTI
 // ============================
 
-// Ricerca utenti con paginazione (senza token)
+// ✅ Ricerca utenti (stesso schema del sito principale)
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10;
-  const skip = (page - 1) * limit;
+  let page = parseInt(req.query.page) || 1;
+  let limit = parseInt(req.query.limit) || 10;
 
   if (!query) {
     return res.status(400).json({ message: "Query mancante" });
   }
 
+  if (page < 1) page = 1;
+  if (limit < 1) limit = 10;
+
+  const skip = (page - 1) * limit;
+
   try {
     const regex = new RegExp(query, 'i');
-    const results = await User.find(
+
+    const total = await Utente.countDocuments({
+      $or: [{ username: regex }, { nome: regex }]
+    });
+
+    const results = await Utente.find(
       { $or: [{ username: regex }, { nome: regex }] },
       'username nome _id'
     )
       .skip(skip)
       .limit(limit);
 
-    res.json(results.map(u => ({
-      id: u._id,
-      username: u.username,
-      nome: u.nome,
-      profilePicUrl: `/api/user-photo/${u._id}`
-    })));
+    res.json({
+      page,
+      limit,
+      total,
+      results: results.map(u => ({
+        id: u._id,
+        username: u.username,
+        nome: u.nome,
+        profilePicUrl: `/api/user-photo/${u._id}`
+      }))
+    });
   } catch (err) {
     console.error("❌ Errore ricerca utenti:", err);
     res.status(500).json({ message: "Errore ricerca" });
   }
 });
 
-// Lista utenti (senza token)
+// Lista utenti semplice
 app.get("/api/v1/users", async (req, res) => {
   try {
-    const users = await User.find({}, { _id: 1, nome: 1, username: 1 });
+    const users = await Utente.find({}, { _id: 1, nome: 1, username: 1 });
     res.status(200).json(users);
   } catch (err) {
-    console.error("Errore nel recupero utenti:", err);
     res.status(500).json({ error: "Errore nel recupero utenti" });
-  }
-});
-
-// Rotte protette da token
-app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.params.email });
-    if (!user) return res.status(404).json({ error: "Utente non trovato" });
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ error: "Errore nel recupero utente" });
-  }
-});
-
-app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
-  try {
-    const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");
-    const user = await User.findOne({ nome: nomeRegex });
-    if (!user) return res.status(404).json({ error: "Utente non trovato" });
-    res.status(200).json(user);
-  } catch (err) {
-    res.status(500).json({ error: "Errore nel recupero utente" });
   }
 });
 
