@@ -1,46 +1,51 @@
 
 import React, { useState } from 'react';
-import './UserSearch.css';
+import './UserSearch.css';  // Se hai uno stile personalizzato
 
-const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
+// Puoi settare qui l'URL backend principale o meglio via .env
+const API_SEARCH_URL = `${process.env.REACT_APP_BACKEND_MAIN_URL || "https://bepoliby.com"}/api/search-users`;
 
 export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [page] = useState(1);
-  const limit = 10;
 
-  const searchUsers = async (text) => {
+  const cercaUtente = async (text) => {
     if (!text.trim()) {
       setResults([]);
+      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      console.warn("⚠️ Nessun token JWT in sessionStorage");
+      setResults([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch(
-        `${API_SEARCH_URL}?q=${encodeURIComponent(text)}&page=${page}&limit=${limit}`,
-        {
-          credentials: 'include',
-        }
-      );
+      const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(text)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include' // se il backend lo richiede (sessioni, cookie)
+      });
 
       if (!res.ok) {
-        console.error("❌ Errore nella ricerca:", res.status);
+        console.error("❌ Errore nella ricerca utenti:", res.status);
         setResults([]);
-        setIsLoading(false);
         return;
       }
 
       const data = await res.json();
-      const utenti = Array.isArray(data) ? data : data.results || [];
-
-      const filtrati = utenti.filter(
-        u => u.id !== currentUserId && u._id !== currentUserId
-      );
-      setResults(filtrati);
+      // data.results o data (dipende da come risponde il backend)
+      const users = Array.isArray(data) ? data : data.results || [];
+      const filtered = users.filter(u => u.id !== currentUserId && u._id !== currentUserId);
+      setResults(filtered);
     } catch (err) {
       console.error("❌ Errore fetch utenti:", err);
       setResults([]);
@@ -53,12 +58,17 @@ export default function UserSearch({ currentUserId, onSelect }) {
     const val = e.target.value;
     setQuery(val);
     clearTimeout(timeoutId);
-    const id = setTimeout(() => searchUsers(val), 300);
+    setIsLoading(true);
+
+    const id = setTimeout(() => {
+      cercaUtente(val);
+    }, 300);
+
     setTimeoutId(id);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && results.length > 0) {
+    if ((e.key === 'Enter' || e.key === 'Tab') && results.length > 0) {
       onSelect(results[0]);
       setQuery('');
       setResults([]);
@@ -74,6 +84,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
         onChange={handleInput}
         onKeyDown={handleKeyDown}
         autoComplete="off"
+        aria-label="Cerca utente"
       />
       {isLoading && <div className="loading">Caricamento...</div>}
       <div className="user-search-results">
@@ -81,14 +92,14 @@ export default function UserSearch({ currentUserId, onSelect }) {
           results.map(user => (
             <div
               key={user.id || user._id}
+              className="user-result"
+              tabIndex={0}
               onClick={() => {
                 onSelect(user);
                 setQuery('');
                 setResults([]);
               }}
-              className="user-result"
-              tabIndex={0}
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
                   onSelect(user);
@@ -96,8 +107,14 @@ export default function UserSearch({ currentUserId, onSelect }) {
                   setResults([]);
                 }
               }}
+              role="button"
+              aria-pressed="false"
             >
-              <img src={user.profilePicUrl || "/default-avatar.png"} alt="avatar" />
+              <img
+                src={user.profilePicUrl || "/default-avatar.png"}
+                alt={`${user.username || "utente"} avatar`}
+                onError={e => { e.currentTarget.src = "/default-avatar.png"; }}
+              />
               <strong>{user.username}</strong>
             </div>
           ))
