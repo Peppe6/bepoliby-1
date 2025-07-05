@@ -1,7 +1,4 @@
-
-// model/dbUser.js
-
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const utenteSchema = new mongoose.Schema({
   nome: String,
@@ -15,6 +12,7 @@ const utenteSchema = new mongoose.Schema({
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }],
   utentiRecenti: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }]
-}, { collection: 'utenti' }); // forza il nome collection se serve
+});
 
-module.exports = mongoose.model("Utente", utenteSchema);
+const Utente = mongoose.model("Utente", utenteSchema);
+module.exports = Utente;
