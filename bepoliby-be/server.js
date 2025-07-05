@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -210,15 +211,13 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const sortedMembers = members.map(m => m.toString()).sort();
 
   try {
+    // Qui la query corretta per evitare duplicati
     const existingRoom = await Rooms.findOne({
-      $and: [
-        { members: { $all: sortedMembers } },
-        { [`members.${sortedMembers.length}`]: { $exists: false } }
-      ]
+      members: { $all: sortedMembers, $size: sortedMembers.length }
     });
 
     if (existingRoom) {
-      return res.status(200).json(existingRoom); // ✅ niente errore, evita catch frontend
+      return res.status(200).json(existingRoom); // stanza esistente: niente errore
     }
 
     const newRoom = new Rooms({
@@ -282,4 +281,3 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
-
