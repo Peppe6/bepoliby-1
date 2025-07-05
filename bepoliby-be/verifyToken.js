@@ -1,24 +1,33 @@
+
 const jwt = require("jsonwebtoken");
 
 const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Token mancante o malformato" });
+  // Se la rotta non richiede un token (es. la ricerca utenti), prosegui senza verificarlo
+  if (req.path === "/api/v1/users" || req.path === "/api/v1/users/search") {
+    return next();
   }
 
-  const token = authHeader.split(" ")[1];
+  const token = req.headers["authorization"]?.split(" ")[1]; // Recupera il token da Authorization header
+  
+  if (!token) {
+    return res.status(401).json({ message: "Token mancante" });
+  }
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // contiene uid, nome, username
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: "Token non valido" });
+    }
+
+    // Aggiungi il payload del token (i dati dell'utente) all'oggetto della richiesta
+    req.user = decoded;
     next();
-  } catch (err) {
-    return res.status(403).json({ message: "Token non valido" });
-  }
+  });
 };
 
 module.exports = verifyToken;
+
+
+
 
 
 
