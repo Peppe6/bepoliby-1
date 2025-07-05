@@ -53,6 +53,14 @@ mongoose.connect(process.env.MONGO_URI, {
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
 // Pusher setup
+const PusherClient = new Pusher({
+  appId: process.env.PUSHER_APP_ID,
+  key: process.env.PUSHER_KEY,
+  secret: process.env.PUSHER_SECRET,
+  cluster: "eu",
+  useTLS: true,
+});
+
 const db = mongoose.connection;
 db.once("open", () => {
   const roomCollection = db.collection("rooms");
@@ -66,7 +74,7 @@ db.once("open", () => {
         const room = await Rooms.findById(roomId);
         const lastMessage = room.messages.at(-1);
         if (lastMessage) {
-          PusherClient.trigger(room_${roomId}, "inserted", { roomId, message: lastMessage });
+          PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: lastMessage });
         }
       }
     }
@@ -75,14 +83,6 @@ db.once("open", () => {
   changeStream.on("error", (err) => {
     console.error("❌ ChangeStream error:", err);
   });
-});
-
-const PusherClient = new Pusher({
-  appId: process.env.PUSHER_APP_ID,
-  key: process.env.PUSHER_KEY,
-  secret: process.env.PUSHER_SECRET,
-  cluster: "eu",
-  useTLS: true,
 });
 
 // TEST
@@ -117,7 +117,7 @@ app.get("/api/auth-token", (req, res) => {
 //         ROTTE UTENTI
 // ============================
 
-// ✅ Ricerca utenti senza token (con paginazione)
+// Ricerca utenti senza token (con paginazione)
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
   const page = parseInt(req.query.page) || 1;
@@ -142,7 +142,7 @@ app.get("/api/v1/users/search", async (req, res) => {
       id: u._id,
       username: u.username,
       nome: u.nome,
-      profilePicUrl: /api/user-photo/${u._id}
+      profilePicUrl: `/api/user-photo/${u._id}` // aggiunto backtick e slash corretto
     })));
   } catch (err) {
     console.error("❌ Errore ricerca utenti:", err);
@@ -150,7 +150,7 @@ app.get("/api/v1/users/search", async (req, res) => {
   }
 });
 
-// ✅ Lista utenti (senza token)
+// Lista utenti (senza token)
 app.get("/api/v1/users", async (req, res) => {
   try {
     const users = await User.find({}, { _id: 1, nome: 1, username: 1 });
@@ -174,7 +174,7 @@ app.get("/api/v1/users/email/:email", verifyToken, async (req, res) => {
 
 app.get("/api/v1/users/nome/:nome", verifyToken, async (req, res) => {
   try {
-    const nomeRegex = new RegExp(^${req.params.nome}$, "i");
+    const nomeRegex = new RegExp(`^${req.params.nome}$`, "i");  // aggiunti backtick e escape corretto
     const user = await User.findOne({ nome: nomeRegex });
     if (!user) return res.status(404).json({ error: "Utente non trovato" });
     res.status(200).json(user);
@@ -214,41 +214,33 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
 
-  // Verifica che il messaggio sia stato fornito
   if (!message) {
     return res.status(400).json({ error: "Messaggio mancante" });
   }
 
   try {
-    // Trova la stanza a cui inviare il messaggio
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    // Verifica che l'utente sia membro della stanza
     if (!room.members.includes(req.user.uid)) {
       return res.status(403).json({ error: "Accesso negato" });
     }
 
-    // Crea il nuovo messaggio
     const newMessage = {
       message,
-      name: req.user.nome || req.user.username || "Anonimo",  // Usa il nome utente o il nome vero
+      name: req.user.nome || req.user.username || "Anonimo",
       timestamp: new Date(),
-      uid: req.user.uid,  // L'utente che invia il messaggio
+      uid: req.user.uid,
     };
 
-    // Aggiungi il messaggio nella stanza
     room.messages.push(newMessage);
-    room.lastMessageTimestamp = new Date();  // Aggiorna il timestamp dell'ultimo messaggio
+    room.lastMessageTimestamp = new Date();
 
-    // Salva la stanza aggiornata
     await room.save();
 
-    // Rispondi con il messaggio appena inviato
     res.status(201).json(newMessage);
 
-    // Invia il messaggio in tempo reale (opzionale, tramite Pusher)
-    PusherClient.trigger(room_${roomId}, "inserted", {
+    PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId,
       message: newMessage
     });
@@ -261,5 +253,5 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
 // Start server
 app.listen(port, () => {
-  console.log(🌐 Server in esecuzione su http://localhost:${port});
+  console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
