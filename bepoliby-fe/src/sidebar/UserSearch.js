@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import './UserSearch.css';  // Se hai uno stile personalizzato
 
 // Puoi settare qui l'URL backend principale o meglio via .env
-const API_SEARCH_URL = `${process.env.REACT_APP_BACKEND_MAIN_URL || "https://bepoli.com"}/api/search-users`;
+const API_SEARCH_URL = `${process.env.REACT_APP_BACKEND_MAIN_URL || "https://bepoli.onrender.com/"}/api/search-users`;
 
 export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
