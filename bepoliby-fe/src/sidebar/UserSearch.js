@@ -4,13 +4,12 @@ import './UserSearch.css';
 
 const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/search-users`;
 
-
 export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
-  const [isLoading, setIsLoading] = useState(false); // Stato per il caricamento
-  const [page] = useState(1); // per ora una sola pagina
+  const [isLoading, setIsLoading] = useState(false);
+  const [page] = useState(1);
   const limit = 10;
 
   const searchUsers = async (text) => {
@@ -19,28 +18,34 @@ export default function UserSearch({ currentUserId, onSelect }) {
       return;
     }
 
-    setIsLoading(true); // Inizia il caricamento
+    setIsLoading(true);
     try {
-      const res = await fetch(${API_SEARCH_URL}?q=${encodeURIComponent(text)}&page=${page}&limit=${limit}, {
-        credentials: 'include',
-      });
+      const res = await fetch(
+        `${API_SEARCH_URL}?q=${encodeURIComponent(text)}&page=${page}&limit=${limit}`,
+        {
+          credentials: 'include',
+        }
+      );
 
       if (!res.ok) {
         console.error("❌ Errore nella ricerca:", res.status);
         setResults([]);
-        setIsLoading(false); // Termina il caricamento
+        setIsLoading(false);
         return;
       }
 
       const data = await res.json();
       const utenti = Array.isArray(data) ? data : data.results || [];
 
-      const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
+      const filtrati = utenti.filter(
+        u => u.id !== currentUserId && u._id !== currentUserId
+      );
       setResults(filtrati);
     } catch (err) {
       console.error("❌ Errore fetch utenti:", err);
       setResults([]);
-      setIsLoading(false); // Termina il caricamento
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -70,7 +75,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
         onKeyDown={handleKeyDown}
         autoComplete="off"
       />
-      {isLoading && <div className="loading">Caricamento...</div>} {/* Visualizzazione del caricamento */}
+      {isLoading && <div className="loading">Caricamento...</div>}
       <div className="user-search-results">
         {results.length > 0 ? (
           results.map(user => (
@@ -97,7 +102,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
             </div>
           ))
         ) : (
-          <div className="no-results">Nessun risultato trovato</div>
+          !isLoading && <div className="no-results">Nessun risultato trovato</div>
         )}
       </div>
     </div>
