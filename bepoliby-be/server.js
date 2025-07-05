@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const verifyToken = require('./verifyToken');
 
 const Rooms = require('./model/dbRooms');
-const Utente = require('./model/dbUser'); // ✅ Usa il modello corretto
+const Utente = require('./model/dbUser');
 
 const app = express();
 const port = process.env.PORT || 9000;
@@ -21,7 +21,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || "supersecret",
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false } // in produzione mettere true se https
+  cookie: { secure: false }
 }));
 
 // CORS
@@ -87,7 +87,7 @@ db.once("open", () => {
 // Test route
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// ✅ Serve immagine profilo da buffer
+// GET user photo
 app.get('/api/user-photo/:userId', async (req, res) => {
   try {
     const user = await Utente.findById(req.params.userId);
@@ -101,7 +101,7 @@ app.get('/api/user-photo/:userId', async (req, res) => {
   }
 });
 
-// ✅ Generazione token JWT da sessione
+// GET JWT from session
 app.get("/api/auth-token", (req, res) => {
   const sessionUser = req.session?.user;
   if (!sessionUser || !sessionUser._id || !sessionUser.username) {
@@ -117,11 +117,9 @@ app.get("/api/auth-token", (req, res) => {
   res.json({ token });
 });
 
-// ============================
-//         ROTTE UTENTI
-// ============================
+// === ROTTE UTENTI ===
 
-// ✅ Ricerca utenti (stesso schema del sito principale)
+// Ricerca utenti
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
   let page = parseInt(req.query.page) || 1;
@@ -167,7 +165,7 @@ app.get("/api/v1/users/search", async (req, res) => {
   }
 });
 
-// Lista utenti semplice
+// Lista utenti
 app.get("/api/v1/users", async (req, res) => {
   try {
     const users = await Utente.find({}, { _id: 1, nome: 1, username: 1 });
@@ -177,14 +175,11 @@ app.get("/api/v1/users", async (req, res) => {
   }
 });
 
-// ============================
-//         ROTTE STANZE
-// ============================
+// === ROTTE STANZE ===
 
-// GET stanze dell'utente (con token)
+// GET stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
-    // Mostra stanze dove l'utente è membro, ordinate per ultimo messaggio
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
   } catch (err) {
@@ -204,7 +199,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// POST: crea nuova stanza (evitando duplicati)
+// ✅ POST: crea nuova stanza (evita duplicati e risponde sempre 200 se esiste)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -212,17 +207,18 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
     return res.status(400).json({ message: "La stanza deve avere almeno due membri" });
   }
 
-  // Ordinare membri per evitare duplicati
-  const sortedMembers = members.sort();
+  const sortedMembers = members.map(m => m.toString()).sort();
 
   try {
-    // Verifica se esiste già una stanza con gli stessi membri
     const existingRoom = await Rooms.findOne({
-      members: { $all: sortedMembers, $size: sortedMembers.length }
+      $and: [
+        { members: { $all: sortedMembers } },
+        { [`members.${sortedMembers.length}`]: { $exists: false } }
+      ]
     });
 
     if (existingRoom) {
-      return res.status(409).json({ message: "Stanza già esistente", roomId: existingRoom._id });
+      return res.status(200).json(existingRoom); // ✅ niente errore, evita catch frontend
     }
 
     const newRoom = new Rooms({
@@ -233,7 +229,6 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
     });
 
     await newRoom.save();
-
     res.status(201).json(newRoom);
   } catch (err) {
     console.error("Errore creazione stanza:", err);
@@ -241,7 +236,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// POST aggiunta messaggio a stanza
+// POST: aggiunta messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
@@ -287,3 +282,4 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
+
