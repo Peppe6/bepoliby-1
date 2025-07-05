@@ -49,3 +49,8 @@
   text-overflow: ellipsis;
 }
 
+.sidebarChat_selected {
+  background-color: #f0f0f0;
+  border-left: 4px solid #00bfa5;
+}
+
