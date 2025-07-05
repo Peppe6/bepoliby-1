@@ -1,37 +1,32 @@
 
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
-const verifyToken = (req, res, next) => {
-  // Rotte pubbliche
-  const publicPaths = [
-    "/api/v1/auth/login",
-    "/api/v1/auth/register",
-    "/api/v1/users/search",
-    "/api/v1/users", // se anche questa è pubblica
-    "/api/user-photo" // per le immagini profilo
-  ];
-
-  // Controlla se la rotta inizia con uno dei path pubblici
-  if (publicPaths.some(path => req.path.startsWith(path))) {
-    return next();
-  }
-
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
+function verifyToken(req, res, next) {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  if (!authHeader) {
     return res.status(401).json({ message: "Token mancante" });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ message: "Token non valido" });
-    }
+  // L’header dovrebbe essere del tipo: "Bearer tokenqui"
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res.status(401).json({ message: "Formato token non valido" });
+  }
 
-    req.user = decoded;
+  const token = parts[1];
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // Qui definisci i dati utente in req.user per usarli nelle rotte
+    req.user = {
+      uid: decoded.id,
+      nome: decoded.nome,
+      username: decoded.username
+    };
     next();
-  });
-};
+  } catch (err) {
+    return res.status(401).json({ message: "Token non valido o scaduto" });
+  }
+}
 
 module.exports = verifyToken;
 
