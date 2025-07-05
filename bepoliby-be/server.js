@@ -181,6 +181,7 @@ app.get("/api/v1/users", async (req, res) => {
 //         ROTTE STANZE
 // ============================
 
+// GET stanze dell'utente (con token)
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     // Mostra stanze dove l'utente è membro, ordinate per ultimo messaggio
@@ -191,6 +192,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// GET stanza per ID
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -202,6 +204,44 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
+// POST: crea nuova stanza (evitando duplicati)
+app.post("/api/v1/rooms", verifyToken, async (req, res) => {
+  const { name, members } = req.body;
+
+  if (!Array.isArray(members) || members.length < 2) {
+    return res.status(400).json({ message: "La stanza deve avere almeno due membri" });
+  }
+
+  // Ordinare membri per evitare duplicati
+  const sortedMembers = members.sort();
+
+  try {
+    // Verifica se esiste già una stanza con gli stessi membri
+    const existingRoom = await Rooms.findOne({
+      members: { $all: sortedMembers, $size: sortedMembers.length }
+    });
+
+    if (existingRoom) {
+      return res.status(409).json({ message: "Stanza già esistente", roomId: existingRoom._id });
+    }
+
+    const newRoom = new Rooms({
+      name,
+      members: sortedMembers,
+      messages: [],
+      lastMessageTimestamp: new Date()
+    });
+
+    await newRoom.save();
+
+    res.status(201).json(newRoom);
+  } catch (err) {
+    console.error("Errore creazione stanza:", err);
+    res.status(500).json({ message: "Errore interno nella creazione stanza" });
+  }
+});
+
+// POST aggiunta messaggio a stanza
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
