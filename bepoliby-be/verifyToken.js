@@ -1,14 +1,18 @@
 
-
-
-
 const jwt = require("jsonwebtoken");
 
 const verifyToken = (req, res, next) => {
-  // Rotte pubbliche, che non richiedono autenticazione
-  const publicPaths = ["/api/v1/auth/login", "/api/v1/auth/register"];
+  // Rotte pubbliche
+  const publicPaths = [
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/users/search",
+    "/api/v1/users", // se anche questa è pubblica
+    "/api/user-photo" // per le immagini profilo
+  ];
 
-  if (publicPaths.includes(req.path)) {
+  // Controlla se la rotta inizia con uno dei path pubblici
+  if (publicPaths.some(path => req.path.startsWith(path))) {
     return next();
   }
 
@@ -24,7 +28,7 @@ const verifyToken = (req, res, next) => {
       return res.status(403).json({ message: "Token non valido" });
     }
 
-    req.user = decoded; // Aggiungo i dati utente alla request
+    req.user = decoded;
     next();
   });
 };
