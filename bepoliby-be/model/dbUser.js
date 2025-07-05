@@ -1,7 +1,6 @@
-
 const mongoose = require('mongoose');
 
-const utenteSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema({
   nome: String,
   username: { type: String, unique: true },
   password: String,
@@ -10,12 +9,12 @@ const utenteSchema = new mongoose.Schema({
     data: Buffer,
     contentType: String
   },
-  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }],
-  following: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }],
-  utentiRecenti: [{ type: mongoose.Schema.Types.ObjectId, ref: "Utente" }]
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  utentiRecenti: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }]
 });
 
 // ✅ Aggiungi indice per la ricerca testuale
-utenteSchema.index({ username: 'text', nome: 'text' });
+userSchema.index({ username: 'text', nome: 'text' });
 
-module.exports = mongoose.model("Utente", utenteSchema);
+module.exports = mongoose.model("User", userSchema);
