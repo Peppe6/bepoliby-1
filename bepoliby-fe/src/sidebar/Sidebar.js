@@ -1,5 +1,8 @@
 
 
+
+
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -14,14 +17,14 @@ import UserSearch from './UserSearch';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-const Sidebar = () => {
+const Sidebar = ({ onRoomSelect }) => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
-  const [loading, setLoading] = useState(true); // Stato per il caricamento
+  const [loading, setLoading] = useState(true);
+  const [selectedRoomId, setSelectedRoomId] = useState(null); // Stato stanza selezionata
 
-  // Configura le intestazioni di axios
   useEffect(() => {
     axios.defaults.withCredentials = true;
     if (token) {
@@ -31,13 +34,12 @@ const Sidebar = () => {
     }
   }, [token]);
 
-  // Recupera stanze e utenti solo se l'utente è autenticato
   useEffect(() => {
-    if (!user?.uid) return; // Evita chiamate se l'utente non è loggato
+    if (!user?.uid) return;
 
     const fetchData = async () => {
       try {
-        setLoading(true); // Inizia il caricamento
+        setLoading(true);
         const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
@@ -50,14 +52,13 @@ const Sidebar = () => {
       } catch (err) {
         console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
       } finally {
-        setLoading(false); // Termina il caricamento
+        setLoading(false);
       }
     };
 
     fetchData();
   }, [user]);
 
-  // Gestisce la selezione di un utente per creare una nuova chat
   const handleUserSelect = async (selectedUser) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
@@ -69,27 +70,28 @@ const Sidebar = () => {
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
       const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
+
       if (res.data?._id) {
-        window.location.href = `/rooms/${res.data._id}`;
+        setSelectedRoomId(res.data._id);
+        if (onRoomSelect) onRoomSelect(res.data._id);
       }
     } catch (err) {
       const data = err.response?.data;
       if (data?.roomId) {
-        window.location.href = `/rooms/${data.roomId}`;
+        setSelectedRoomId(data.roomId);
+        if (onRoomSelect) onRoomSelect(data.roomId);
       } else {
         alert("Errore nella creazione chat");
       }
     }
   };
 
-  // Funzione per inviare un messaggio automatico
   const sendMessageToUser = async (username, message) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per inviare messaggi.");
       return;
     }
 
-    // Trova l'utente nella lista
     const selectedUserEntry = Object.entries(allUsers).find(([id, nome]) => nome === username);
     if (!selectedUserEntry) {
       alert("Utente non trovato");
@@ -105,7 +107,6 @@ const Sidebar = () => {
       const roomId = res.data._id || res.data.roomId;
       if (!roomId) throw new Error("ID stanza mancante");
 
-      // Invia il messaggio
       await axios.post(`${API_BASE_URL}/api/v1/rooms/${roomId}/messages`, {
         message,
         name: user.nome,
@@ -113,7 +114,9 @@ const Sidebar = () => {
         uid: user.uid
       });
 
-      window.location.href = `/rooms/${roomId}`;
+      setSelectedRoomId(roomId);
+      if (onRoomSelect) onRoomSelect(roomId);
+
     } catch (err) {
       alert("Errore invio messaggio: " + (err.response?.data?.message || err.message));
     }
@@ -160,7 +163,6 @@ const Sidebar = () => {
         <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
       </div>
 
-      {/* Bottone per inviare messaggio automatico a un utente specifico */}
       <div style={{ padding: '0 16px', marginBottom: 10 }}>
         <button
           onClick={() => sendMessageToUser("prova13", "Ciao, questo è un messaggio automatico!")}
@@ -189,6 +191,11 @@ const Sidebar = () => {
                 id={room._id}
                 name={displayName}
                 lastMessageText={lastMessage}
+                selected={selectedRoomId === room._id}
+                onClick={() => {
+                  setSelectedRoomId(room._id);
+                  if (onRoomSelect) onRoomSelect(room._id);
+                }}
               />
             );
           })}
@@ -198,9 +205,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
-
-
-
-
 
