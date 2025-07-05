@@ -1,3 +1,5 @@
+
+
 // FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
@@ -52,20 +54,20 @@ function App() {
 
     if (token) {
       try {
-        const decoded = decodeJwt(token);
-        const { id, nome, username } = decoded || {};
+        const decoded = decodeJwt(token) || {};
+        const { uid, nome, username } = decoded;
 
-        if (id && nome && username) {
+        if (uid && nome && username) {
           sessionStorage.setItem("token", token);
-          sessionStorage.setItem("user", JSON.stringify({ id, nome, username }));
+          sessionStorage.setItem("user", JSON.stringify({ uid, nome, username }));
 
           dispatch({
             type: "SET_USER",
-            user: { uid: id, nome, username },
+            user: { uid, nome, username },
             token
           });
 
-          console.log("✅ Token ricevuto da URL e utente impostato:", { id, nome, username });
+          console.log("✅ Token ricevuto da URL e utente impostato:", { uid, nome, username });
 
           window.history.replaceState(null, "", window.location.pathname);
         }
@@ -84,7 +86,7 @@ function App() {
         const userData = JSON.parse(userString);
         dispatch({
           type: "SET_USER",
-          user: { uid: userData.id || userData.uid, nome: userData.nome, username: userData.username },
+          user: { uid: userData.uid || userData.id, nome: userData.nome, username: userData.username },
           token
         });
         console.log("🟢 Utente caricato da sessionStorage:", userData);
@@ -116,4 +118,3 @@ function App() {
 }
 
 export default App;
-
