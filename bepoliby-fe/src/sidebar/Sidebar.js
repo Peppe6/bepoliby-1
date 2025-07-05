@@ -1,8 +1,5 @@
 
 
-
-
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -14,17 +11,20 @@ import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 import UserSearch from './UserSearch';
+import { useParams, useNavigate } from "react-router-dom";
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-const Sidebar = ({ onRoomSelect }) => {
+const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [{ user, token }] = useStateValue();
   const [allUsers, setAllUsers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [selectedRoomId, setSelectedRoomId] = useState(null); // Stato stanza selezionata
+  const { roomId } = useParams(); // ← prende la stanza attuale dall'URL
+  const navigate = useNavigate();
 
+  // Imposta l’header con il token
   useEffect(() => {
     axios.defaults.withCredentials = true;
     if (token) {
@@ -71,15 +71,14 @@ const Sidebar = ({ onRoomSelect }) => {
 
       const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
 
-      if (res.data?._id) {
-        setSelectedRoomId(res.data._id);
-        if (onRoomSelect) onRoomSelect(res.data._id);
+      const newRoomId = res.data?._id || res.data?.roomId;
+      if (newRoomId) {
+        navigate(`/rooms/${newRoomId}`);
       }
     } catch (err) {
       const data = err.response?.data;
       if (data?.roomId) {
-        setSelectedRoomId(data.roomId);
-        if (onRoomSelect) onRoomSelect(data.roomId);
+        navigate(`/rooms/${data.roomId}`);
       } else {
         alert("Errore nella creazione chat");
       }
@@ -97,6 +96,7 @@ const Sidebar = ({ onRoomSelect }) => {
       alert("Utente non trovato");
       return;
     }
+
     const [selectedUserId, selectedUserName] = selectedUserEntry;
 
     try {
@@ -104,19 +104,17 @@ const Sidebar = ({ onRoomSelect }) => {
       const roomName = `${user.nome} - ${selectedUserName}`;
       const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
 
-      const roomId = res.data._id || res.data.roomId;
-      if (!roomId) throw new Error("ID stanza mancante");
+      const newRoomId = res.data._id || res.data.roomId;
+      if (!newRoomId) throw new Error("ID stanza mancante");
 
-      await axios.post(`${API_BASE_URL}/api/v1/rooms/${roomId}/messages`, {
+      await axios.post(`${API_BASE_URL}/api/v1/rooms/${newRoomId}/messages`, {
         message,
         name: user.nome,
         timestamp: new Date().toISOString(),
         uid: user.uid
       });
 
-      setSelectedRoomId(roomId);
-      if (onRoomSelect) onRoomSelect(roomId);
-
+      navigate(`/rooms/${newRoomId}`);
     } catch (err) {
       alert("Errore invio messaggio: " + (err.response?.data?.message || err.message));
     }
@@ -191,11 +189,7 @@ const Sidebar = ({ onRoomSelect }) => {
                 id={room._id}
                 name={displayName}
                 lastMessageText={lastMessage}
-                selected={selectedRoomId === room._id}
-                onClick={() => {
-                  setSelectedRoomId(room._id);
-                  if (onRoomSelect) onRoomSelect(room._id);
-                }}
+                selected={roomId === room._id} // ✅ evidenzia la chat attiva
               />
             );
           })}
@@ -205,4 +199,3 @@ const Sidebar = ({ onRoomSelect }) => {
 };
 
 export default Sidebar;
-
