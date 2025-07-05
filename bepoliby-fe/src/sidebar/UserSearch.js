@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import './UserSearch.css';
 
-const API_SEARCH_URL = ${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/search-users;
+const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/search-users`;
+
 
 export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
