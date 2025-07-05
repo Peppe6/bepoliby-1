@@ -1,9 +1,3 @@
-
-
-
-
-
-
 import React, { useState, useEffect } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -65,10 +59,8 @@ function Chat() {
 
   useEffect(() => {
     const fetchRoomData = async () => {
-      if (!roomId || !user?.uid) {
-        navigate("/");
-        return;
-      }
+      if (!roomId) return;
+      if (!user?.uid) return; // Aspetta user prima di agire
 
       try {
         const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`, {
@@ -85,7 +77,7 @@ function Chat() {
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
         console.error("Errore caricamento chat:", err);
-        navigate("/");
+        navigate("/"); // Naviga via solo se c'è errore reale
       }
     };
 
