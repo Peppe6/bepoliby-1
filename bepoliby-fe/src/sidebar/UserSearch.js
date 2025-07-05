@@ -1,46 +1,45 @@
+
 import React, { useState } from 'react';
 import './UserSearch.css';
 
-const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
+const API_SEARCH_URL = ${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/search-users;
 
 export default function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [timeoutId, setTimeoutId] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [page] = useState(1);
+  const [isLoading, setIsLoading] = useState(false); // Stato per il caricamento
+  const [page] = useState(1); // per ora una sola pagina
   const limit = 10;
 
   const searchUsers = async (text) => {
     if (!text.trim()) {
       setResults([]);
-      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    setIsLoading(true); // Inizia il caricamento
     try {
-      const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(text)}&page=${page}&limit=${limit}`, {
-        // nessun Authorization perché endpoint pubblico
-        credentials: 'include', // opzionale, se gestisci cookie/sessione
+      const res = await fetch(${API_SEARCH_URL}?q=${encodeURIComponent(text)}&page=${page}&limit=${limit}, {
+        credentials: 'include',
       });
 
       if (!res.ok) {
         console.error("❌ Errore nella ricerca:", res.status);
         setResults([]);
-        setIsLoading(false);
+        setIsLoading(false); // Termina il caricamento
         return;
       }
 
-      const utenti = await res.json();
+      const data = await res.json();
+      const utenti = Array.isArray(data) ? data : data.results || [];
 
-      const filtrati = utenti.filter(u => u._id !== currentUserId && u.id !== currentUserId);
+      const filtrati = utenti.filter(u => u.id !== currentUserId && u._id !== currentUserId);
       setResults(filtrati);
     } catch (err) {
       console.error("❌ Errore fetch utenti:", err);
       setResults([]);
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Termina il caricamento
     }
   };
 
@@ -70,7 +69,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
         onKeyDown={handleKeyDown}
         autoComplete="off"
       />
-      {isLoading && <div className="loading">Caricamento...</div>}
+      {isLoading && <div className="loading">Caricamento...</div>} {/* Visualizzazione del caricamento */}
       <div className="user-search-results">
         {results.length > 0 ? (
           results.map(user => (
@@ -97,11 +96,9 @@ export default function UserSearch({ currentUserId, onSelect }) {
             </div>
           ))
         ) : (
-          !isLoading && <div className="no-results">Nessun risultato trovato</div>
+          <div className="no-results">Nessun risultato trovato</div>
         )}
       </div>
     </div>
   );
 }
-
-
