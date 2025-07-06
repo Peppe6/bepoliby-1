@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -199,7 +200,11 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
-    if (!room.members.includes(req.user.uid)) return res.status(403).json({ error: "Accesso negato" });
+
+    // Cambiato controllo per ObjectId vs stringa
+    const isMember = room.members.some(memberId => memberId.toString() === req.user.uid.toString());
+    if (!isMember) return res.status(403).json({ error: "Accesso negato" });
+
     res.status(200).json(room);
   } catch (err) {
     res.status(500).json({ error: "Errore nel recupero stanza" });
@@ -252,7 +257,9 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    if (!room.members.includes(req.user.uid)) {
+    // Cambiato controllo per ObjectId vs stringa
+    const isMember = room.members.some(memberId => memberId.toString() === req.user.uid.toString());
+    if (!isMember) {
       return res.status(403).json({ error: "Accesso negato" });
     }
 
@@ -276,7 +283,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       message: newMessage
     });
 
-    // 🔥 Evento globale per la Sidebar
+    // Evento globale per la Sidebar
     PusherClient.trigger("rooms", "new-message", {
       roomId,
       message: newMessage
