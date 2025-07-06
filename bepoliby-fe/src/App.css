@@ -1,3 +1,4 @@
+
 /* Reset globale */
 * {
   margin: 0;
@@ -5,10 +6,14 @@
   box-sizing: border-box;
 }
 
-/* Contenitore principale centrato */
+body, html, #root {
+  height: 100%;
+}
+
+/* Contenitore principale */
 .app {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   background-color: lightgray;
 }
@@ -16,10 +21,11 @@
 /* Corpo dell'app */
 .app_body { 
   display: flex;
+  flex: 1;
   background-color: #ededed;
-  height: 90vh;
-  width: 95vw;
+  width: 100%;
   max-width: 1400px;
+  margin: 0 auto;
   box-shadow: -1px 4px 20px -6px rgba(0, 0, 0, 0.5);
   border-radius: 10px;
   overflow: hidden;
@@ -31,10 +37,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin: 0 auto;
+  flex: 1;
+  padding: 2rem;
+  text-align: center;
 }
 
-/* Elementi informativi */
 .info-center-item {
   padding: 5px;
 }
@@ -43,8 +50,7 @@
 @media screen and (max-width: 768px) {
   .app_body {
     flex-direction: column;
-    width: 100vw;
-    height: 100vh;
+    height: 100%;
     border-radius: 0;
   }
 }
