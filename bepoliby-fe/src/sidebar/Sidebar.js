@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -80,9 +81,11 @@ const Sidebar = () => {
             ...updatedRooms[idx],
             lastMessageText: data.message.message,
             messages: [...(updatedRooms[idx].messages || []), data.message],
+            lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
           };
           return updatedRooms;
         } else {
+          // Se la stanza non è in lista, aggiungila (data.room deve contenere i dati della stanza)
           return [data.room, ...prevRooms];
         }
       });
@@ -143,6 +146,7 @@ const Sidebar = () => {
   // Pre-elaboro stanze con dati utili per filtro e rendering
   const filteredRooms = rooms
     .map(room => {
+      // Trova l'ID dell'altro membro della stanza (diverso da me)
       const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
       const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
       const messages = room.messages || [];
