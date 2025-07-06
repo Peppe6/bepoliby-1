@@ -11,7 +11,6 @@ import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 import UserSearch from './UserSearch';
 import { useParams, useNavigate } from "react-router-dom";
-// import Pusher from 'pusher-js'; // se vuoi abilitare realtime
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
@@ -39,10 +38,13 @@ const Sidebar = () => {
       try {
         setLoading(true);
 
-        const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
+        const [roomsRes, usersRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/api/v1/rooms`),
+          axios.get(`${API_BASE_URL}/api/v1/users`)
+        ]);
+
         setRooms(roomsRes.data);
 
-        const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
           usersMap[u._id] = u.nome || u.username || "Sconosciuto";
@@ -57,21 +59,6 @@ const Sidebar = () => {
     };
 
     fetchData();
-
-    // Esempio base per Pusher (da configurare e attivare se serve)
-    /*
-    const pusher = new Pusher('TUO_PUSHER_KEY', { cluster: 'eu' });
-    rooms.forEach(room => {
-      const channel = pusher.subscribe(`room_${room._id}`);
-      channel.bind('inserted', (data) => {
-        setRooms(prevRooms => prevRooms.map(r => r._id === data.roomId ? { ...r, lastMessageText: data.message.message } : r));
-      });
-    });
-    return () => {
-      rooms.forEach(room => pusher.unsubscribe(`room_${room._id}`));
-    };
-    */
-
   }, [user]);
 
   const handleUserSelect = async (selectedUser) => {
@@ -82,6 +69,7 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
+      // Per la creazione stanza mantieni pure questa logica (è solo lato backend)
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
 
       const config = {
@@ -158,14 +146,15 @@ const Sidebar = () => {
         {rooms
           .filter(room => {
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
+            // Usa solo nome dell'altro utente, se esiste, altrimenti "Utente sconosciuto"
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || "Utente sconosciuto") : "Stanza sconosciuta";
             return displayName.toLowerCase().includes(searchTerm.toLowerCase());
           })
           .map(room => {
             const messages = room.messages || [];
             const lastMessage = messages.length ? messages[messages.length - 1].message : "";
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || "Utente sconosciuto") : "Stanza sconosciuta";
 
             return (
               <SidebarChat
