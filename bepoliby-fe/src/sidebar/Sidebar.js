@@ -72,27 +72,35 @@ const Sidebar = () => {
 
     const channel = pusher.subscribe('rooms');
 
-    channel.bind('new-message', (data) => {
-      if (!data || !data.roomId || !data.message) return;
+  channel.bind('new-message', (data) => {
+  if (!data || !data.room || !data.message) return;
 
-      setRooms(prevRooms => {
-        const idx = prevRooms.findIndex(r => r._id === data.roomId);
-        if (idx !== -1) {
-          const updatedRooms = [...prevRooms];
-          const room = updatedRooms[idx];
-          updatedRooms[idx] = {
-            ...room,
-            messages: [...(room.messages || []), data.message],
-            lastMessageText: data.message.message,
-            lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
-          };
-          return updatedRooms;
-        } else {
-          console.warn("Nuova room ricevuta ma mancano dati completi:", data);
-          return prevRooms;
-        }
-      });
-    });
+  setRooms(prevRooms => {
+    const idx = prevRooms.findIndex(r => r._id === data.room._id);
+
+    if (idx !== -1) {
+      // Aggiorna stanza esistente
+      const updatedRooms = [...prevRooms];
+      updatedRooms[idx] = {
+        ...data.room,
+        lastMessageText: data.message.message,
+        lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
+      };
+      return updatedRooms;
+    } else {
+      // Aggiunge nuova stanza
+      return [
+        {
+          ...data.room,
+          lastMessageText: data.message.message,
+          lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
+        },
+        ...prevRooms
+      ];
+    }
+  });
+});
+
 
     return () => {
       channel.unbind_all();
