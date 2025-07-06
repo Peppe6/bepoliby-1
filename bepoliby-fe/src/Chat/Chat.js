@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -29,10 +26,10 @@ function Chat() {
 
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
   };
 
   useEffect(() => {
-    axios.defaults.withCredentials = true;
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
@@ -83,14 +80,13 @@ function Chat() {
         const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         setRoomName(roomRes.data.name);
 
-        // ✅ Prendi direttamente i messaggi dalla stanza
         const messages = roomRes.data.messages || [];
         setRoomMessages(messages);
 
         const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
-        console.error("❌ Errore caricamento chat:", err);
+        console.error("Errore caricamento chat:", err);
         setRoomName("⚠️ Stanza non trovata o accesso negato");
         setRoomMessages([]);
       }
@@ -105,7 +101,7 @@ function Chat() {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !user?.uid) return;
+    if (!input.trim() || !user?.uid || !roomId) return;
 
     const tempId = `temp-${Date.now()}`;
     const newMessage = {
@@ -122,7 +118,7 @@ function Chat() {
     try {
       await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
     } catch (error) {
-      console.error("❌ Errore nell'invio del messaggio:", error);
+      console.error("Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
       alert("Errore nell'invio del messaggio, riprova.");
     }
@@ -218,14 +214,11 @@ function Chat() {
             type="text"
             aria-label="Campo messaggio"
           />
-          <button type="submit" disabled={!input.trim()}>Invia</button>
+          <button type="submit" disabled={!input.trim() || !roomId}>Invia</button>
         </form>
         {showEmojiPicker && (
           <EmojiPicker
-            onEmojiClick={(emojiData) => {
-              onEmojiClick(emojiData);
-              setShowEmojiPicker(false);
-            }}
+            onEmojiClick={onEmojiClick}
             width={300}
             height={350}
           />
@@ -236,3 +229,4 @@ function Chat() {
 }
 
 export default Chat;
+
