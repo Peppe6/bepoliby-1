@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -65,9 +64,16 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
+      const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
-      // Mando solo i membri, senza name
-      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { members: membri });
+      // Passo header Authorization direttamente nella POST
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      };
+
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri }, config);
 
       const newRoomId = res.data?._id || res.data?.roomId;
       if (newRoomId) {
@@ -78,7 +84,7 @@ const Sidebar = () => {
       if (data?.roomId) {
         navigate(`/rooms/${data.roomId}`);
       } else {
-        alert("Errore nella creazione chat");
+        alert("Errore nella creazione chat: " + (err.response?.data?.message || err.message));
       }
     }
   };
@@ -153,3 +159,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
