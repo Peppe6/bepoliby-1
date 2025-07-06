@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -24,7 +23,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    axios.defaults.withCredentials = true;
+    // NON impostare withCredentials perché non usiamo cookie, solo JWT in header
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
@@ -68,11 +67,11 @@ const Sidebar = () => {
       const membri = [user.uid, selectedUser._id];
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
 
+      // Config senza withCredentials
       const config = {
         headers: {
           Authorization: `Bearer ${token}`
-        },
-        withCredentials: true
+        }
       };
 
       const res = await axios.post(
