@@ -1,3 +1,6 @@
+
+
+
 const mongoose = require('mongoose');
 
 // Schema per il messaggio
@@ -5,7 +8,7 @@ const messageSchema = new mongoose.Schema({
   message: { type: String, required: true },
   name: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
-  uid: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }
+  uid: { type: mongoose.Schema.Types.ObjectId, ref: 'Utente', required: true }
 });
 
 // Indice per migliorare la ricerca
@@ -20,7 +23,7 @@ const roomSchema = new mongoose.Schema({
   },
   lastMessageTimestamp: { type: Date, default: null },
   members: {
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Utente' }],
     required: true
   }
 });
@@ -43,5 +46,3 @@ roomSchema.methods.getMembers = function () {
 };
 
 module.exports = mongoose.model('Room', roomSchema);
-
-
