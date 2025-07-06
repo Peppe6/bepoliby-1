@@ -1,3 +1,4 @@
+
 // FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
@@ -25,7 +26,6 @@ function decodeJwt(token) {
   }
 }
 
-// Helper per creare istanza axios con header Authorization Bearer
 function axiosAuth(token) {
   return axios.create({
     baseURL: process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com",
@@ -54,7 +54,7 @@ function InfoCenter() {
 function App() {
   const [{ user, token }, dispatch] = useStateValue();
 
-  // Recupero token e user da URL e salvo in sessionStorage + context
+  // ✅ Estrae token dall’URL
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get("token");
@@ -79,7 +79,7 @@ function App() {
     }
   }, [dispatch]);
 
-  // Recupero token e user da sessionStorage al reload
+  // ✅ Ripristina user/token da sessionStorage
   useEffect(() => {
     const tokenStored = sessionStorage.getItem("token");
     const userString = sessionStorage.getItem("user");
@@ -103,7 +103,17 @@ function App() {
     }
   }, [dispatch]);
 
-  // Esempio: fetch utenti protetta con token, da chiamare in componenti come Sidebar
+  // ✅ IMPOSTA HEADER GLOBALE AXIOS
+  useEffect(() => {
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.withCredentials = true;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
+
+  // Esempio uso axiosAuth (non obbligatorio se sopra è fatto)
   async function fetchUsers() {
     if (!token) {
       console.warn("Token mancante, impossibile fetchare utenti");
