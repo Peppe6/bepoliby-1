@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -183,9 +184,12 @@ app.get("/api/v1/users", async (req, res) => {
   }
 });
 
+// MODIFICA PRINCIPALE: popolare i membri per poter mostrare dati utenti in frontend
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
-    const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
+    const data = await Rooms.find({ members: req.user.uid })
+      .populate('members', 'nome username')
+      .sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
   } catch (err) {
     res.status(500).json({ error: "Errore nel recupero stanze" });
@@ -281,4 +285,3 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, '0.0.0.0', () => {
   console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
-
