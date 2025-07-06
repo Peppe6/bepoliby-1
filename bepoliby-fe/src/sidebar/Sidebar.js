@@ -11,8 +11,13 @@ import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 import UserSearch from './UserSearch';
 import { useParams, useNavigate } from "react-router-dom";
+import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
+
+// Qui metti i tuoi dati Pusher reali:
+const PUSHER_KEY = "6a10fce7f61c4c88633b";
+const PUSHER_CLUSTER = "eu"; 
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
@@ -38,13 +43,10 @@ const Sidebar = () => {
       try {
         setLoading(true);
 
-        const [roomsRes, usersRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/v1/rooms`),
-          axios.get(`${API_BASE_URL}/api/v1/users`)
-        ]);
-
+        const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
+        const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
           usersMap[u._id] = u.nome || u.username || "Sconosciuto";
@@ -59,7 +61,49 @@ const Sidebar = () => {
     };
 
     fetchData();
-  }, [user]);
+
+    // Attivazione Pusher per aggiornamenti realtime delle stanze
+    const pusher = new Pusher(PUSHER_KEY, {
+      cluster: PUSHER_CLUSTER,
+      authEndpoint: `${API_BASE_URL}/pusher/auth`, // se usi autenticazione privata
+      auth: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      }
+    });
+
+    // Sottoscrivi a un canale globale oppure ai singoli canali delle stanze
+    // Qui esempio di canale globale "rooms"
+    const channel = pusher.subscribe('rooms');
+
+    channel.bind('new-message', (data) => {
+      // Quando arriva un messaggio nuovo, aggiorna le stanze
+      setRooms(prevRooms => {
+        // Se la stanza esiste, aggiorna il last message, altrimenti aggiungi stanza nuova
+        const idx = prevRooms.findIndex(r => r._id === data.roomId);
+        if (idx !== -1) {
+          const updatedRooms = [...prevRooms];
+          updatedRooms[idx] = {
+            ...updatedRooms[idx],
+            lastMessageText: data.message.message,
+            messages: [...(updatedRooms[idx].messages || []), data.message],
+          };
+          return updatedRooms;
+        } else {
+          // Stanza nuova, aggiungi in testa
+          return [data.room, ...prevRooms];
+        }
+      });
+    });
+
+    return () => {
+      channel.unbind_all();
+      channel.unsubscribe();
+      pusher.disconnect();
+    };
+
+  }, [user, token]);
 
   const handleUserSelect = async (selectedUser) => {
     if (!user?.uid) {
@@ -69,7 +113,6 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
-      // Per la creazione stanza mantieni pure questa logica (è solo lato backend)
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
 
       const config = {
@@ -146,15 +189,14 @@ const Sidebar = () => {
         {rooms
           .filter(room => {
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-            // Usa solo nome dell'altro utente, se esiste, altrimenti "Utente sconosciuto"
-            const displayName = otherUserUid ? (allUsers[otherUserUid] || "Utente sconosciuto") : "Stanza sconosciuta";
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
             return displayName.toLowerCase().includes(searchTerm.toLowerCase());
           })
           .map(room => {
             const messages = room.messages || [];
             const lastMessage = messages.length ? messages[messages.length - 1].message : "";
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-            const displayName = otherUserUid ? (allUsers[otherUserUid] || "Utente sconosciuto") : "Stanza sconosciuta";
+            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
             return (
               <SidebarChat
