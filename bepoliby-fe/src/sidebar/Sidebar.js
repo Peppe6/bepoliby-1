@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -15,7 +14,6 @@ import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-// I tuoi dati Pusher:
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
 const PUSHER_CLUSTER = "eu";
 
@@ -42,7 +40,6 @@ const Sidebar = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-
         const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
@@ -107,7 +104,6 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
-      // Il nome della stanza sarà solo il nome dell'altro utente, non il tuo
       const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
       const config = {
@@ -143,6 +139,19 @@ const Sidebar = () => {
   if (!user) {
     return <div className="sidebar_loading">Utente non autenticato</div>;
   }
+
+  // Pre-elaboro stanze con dati utili per filtro e rendering
+  const filteredRooms = rooms
+    .map(room => {
+      const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
+      const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
+      const messages = room.messages || [];
+      const lastMessage = room.lastMessageText || (messages.length ? messages[messages.length - 1].message : "");
+      return { room, otherUserUid, displayName, lastMessage };
+    })
+    .filter(({ displayName }) =>
+      displayName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   return (
     <div className="sidebar">
@@ -181,28 +190,15 @@ const Sidebar = () => {
       </div>
 
       <div className="sidebar_chats">
-        {rooms
-          .filter(room => {
-            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
-            return displayName.toLowerCase().includes(searchTerm.toLowerCase());
-          })
-          .map(room => {
-            const messages = room.messages || [];
-            const lastMessage = room.lastMessageText || (messages.length ? messages[messages.length - 1].message : "");
-            const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-            const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
-
-            return (
-              <SidebarChat
-                key={room._id}
-                id={room._id}
-                name={displayName}
-                lastMessageText={lastMessage}
-                selected={roomId === room._id}
-              />
-            );
-          })}
+        {filteredRooms.map(({ room, displayName, lastMessage }) => (
+          <SidebarChat
+            key={room._id}
+            id={room._id}
+            name={displayName}
+            lastMessageText={lastMessage}
+            selected={roomId === room._id}
+          />
+        ))}
       </div>
     </div>
   );
