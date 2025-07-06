@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -10,6 +11,7 @@ import axios from 'axios';
 import { useStateValue } from '../StateProvider';
 import UserSearch from './UserSearch';
 import { useParams, useNavigate } from "react-router-dom";
+// import Pusher from 'pusher-js'; // se vuoi abilitare realtime
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
@@ -23,7 +25,6 @@ const Sidebar = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // NON impostare withCredentials perché non usiamo cookie, solo JWT in header
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
@@ -47,6 +48,7 @@ const Sidebar = () => {
           usersMap[u._id] = u.nome || u.username || "Sconosciuto";
         });
         setAllUsers(usersMap);
+
       } catch (err) {
         console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
       } finally {
@@ -55,6 +57,21 @@ const Sidebar = () => {
     };
 
     fetchData();
+
+    // Esempio base per Pusher (da configurare e attivare se serve)
+    /*
+    const pusher = new Pusher('TUO_PUSHER_KEY', { cluster: 'eu' });
+    rooms.forEach(room => {
+      const channel = pusher.subscribe(`room_${room._id}`);
+      channel.bind('inserted', (data) => {
+        setRooms(prevRooms => prevRooms.map(r => r._id === data.roomId ? { ...r, lastMessageText: data.message.message } : r));
+      });
+    });
+    return () => {
+      rooms.forEach(room => pusher.unsubscribe(`room_${room._id}`));
+    };
+    */
+
   }, [user]);
 
   const handleUserSelect = async (selectedUser) => {
@@ -67,7 +84,6 @@ const Sidebar = () => {
       const membri = [user.uid, selectedUser._id];
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
 
-      // Config senza withCredentials
       const config = {
         headers: {
           Authorization: `Bearer ${token}`
