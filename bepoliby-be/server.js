@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -201,7 +200,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
     const room = await Rooms.findById(req.params.roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    // Cambiato controllo per ObjectId vs stringa
+    // Controllo se l'utente è membro della stanza
     const isMember = room.members.some(memberId => memberId.toString() === req.user.uid.toString());
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
@@ -211,6 +210,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
+// POST stanza: crea nuova stanza solo se non esiste già tra membri (evita duplicati)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -219,18 +219,22 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 
   try {
+    // Normalizza e ordina gli id membri per evitare duplicati con ordine diverso
     const sortedMembers = members
       .map(id => new mongoose.Types.ObjectId(id))
       .sort((a, b) => a.toString().localeCompare(b.toString()));
 
+    // Cerca stanza esistente con gli stessi membri
     const existingRoom = await Rooms.findOne({
       members: { $all: sortedMembers, $size: sortedMembers.length }
     });
 
     if (existingRoom) {
+      // Se esiste già, ritorna quella stanza
       return res.status(200).json(existingRoom);
     }
 
+    // Crea nuova stanza
     const newRoom = new Rooms({
       name: name || null,
       members: sortedMembers,
@@ -276,37 +280,23 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     await room.save();
 
-    // Ricarica la stanza con i dati completi dei membri
+    // Ricarica stanza con membri popolati per invio eventi
     const fullRoom = await Rooms.findById(roomId).populate('members', 'nome username');
 
-    // Invia la risposta al client prima degli eventi
+    // Rispondi subito al client
     res.status(201).json(newMessage);
 
-    try {
-      // Evento per la stanza specifica
-      await PusherClient.trigger(`room_${roomId}`, "inserted", {
-        roomId,
-        message: newMessage,
-      });
-
-      // Evento globale con la stanza completa per Sidebar
-      await PusherClient.trigger("rooms", "new-message", {
-        room: fullRoom,
-        message: newMessage,
-      });
-
-    } catch (pusherErr) {
-      console.error("Errore durante trigger Pusher:", pusherErr);
-      // Non bloccare la risposta al client, solo loggare l’errore
-    }
-
+    // Trigger Pusher
+    PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
   } catch (err) {
-    console.error("❌ Errore messaggio:", err);
-    res.status(500).json({ error: "Errore interno nel salvataggio del messaggio" });
+    console.error("❌ Errore invio messaggio:", err);
+    res.status(500).json({ error: "Errore interno invio messaggio" });
   }
 });
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
+// === Avvio server ===
+app.listen(port, () => {
+  console.log(`🚀 Server avviato sulla porta ${port}`);
 });
+
 
