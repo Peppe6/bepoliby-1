@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -22,28 +24,33 @@ const Sidebar = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
+  // Imposta l'header Authorization per axios ogni volta che cambia il token
   useEffect(() => {
-    axios.defaults.withCredentials = true;
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       delete axios.defaults.headers.common['Authorization'];
     }
+    axios.defaults.withCredentials = true;
   }, [token]);
 
+  // Fetch stanze + utenti appena l'utente è disponibile
   useEffect(() => {
     if (!user?.uid) return;
 
     const fetchData = async () => {
       try {
         setLoading(true);
+
+        // Fetch stanze (rooms)
         const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
+        // Fetch utenti (users)
         const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
-          usersMap[u._id] = u.nome || u.username;
+          usersMap[u._id] = u.nome || u.username || "Sconosciuto";
         });
         setAllUsers(usersMap);
       } catch (err) {
@@ -56,6 +63,7 @@ const Sidebar = () => {
     fetchData();
   }, [user]);
 
+  // Quando seleziono un utente nella ricerca, creo (o riuso) la stanza e vado alla chat
   const handleUserSelect = async (selectedUser) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
@@ -64,27 +72,24 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
-      const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
+      const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
 
-      // Passo header Authorization direttamente nella POST
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      };
-
-      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri }, config);
+      const res = await axios.post(
+        `${API_BASE_URL}/api/v1/rooms`,
+        { name: roomName, members: membri }
+      );
 
       const newRoomId = res.data?._id || res.data?.roomId;
       if (newRoomId) {
         navigate(`/rooms/${newRoomId}`);
       }
     } catch (err) {
+      // Se stanza esiste già, backend ritorna roomId, quindi navigo lì
       const data = err.response?.data;
       if (data?.roomId) {
         navigate(`/rooms/${data.roomId}`);
       } else {
-        alert("Errore nella creazione chat: " + (err.response?.data?.message || err.message));
+        alert("Errore nella creazione chat: " + (data?.message || err.message));
       }
     }
   };
@@ -102,7 +107,10 @@ const Sidebar = () => {
       <div className="sidebar_header">
         <div className="sidebar_header_left">
           <IconButton>
-            <Avatar src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`} />
+            <Avatar
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
+              alt={user?.nome || "Utente"}
+            />
           </IconButton>
           <span>{user?.nome || "Utente"}</span>
         </div>
@@ -139,7 +147,7 @@ const Sidebar = () => {
           })
           .map(room => {
             const messages = room.messages || [];
-            const lastMessage = messages[messages.length - 1]?.message || "";
+            const lastMessage = messages.length ? messages[messages.length - 1].message : "";
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
             const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
@@ -159,4 +167,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
