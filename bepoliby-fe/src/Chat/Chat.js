@@ -1,3 +1,6 @@
+
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -80,10 +83,11 @@ function Chat() {
         const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         setRoomName(roomRes.data.name);
 
-        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`);
-        setRoomMessages(messagesRes.data);
+        // ✅ Prendi direttamente i messaggi dalla stanza
+        const messages = roomRes.data.messages || [];
+        setRoomMessages(messages);
 
-        const lastMsg = messagesRes.data.at(-1);
+        const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
         console.error("❌ Errore caricamento chat:", err);
@@ -232,5 +236,3 @@ function Chat() {
 }
 
 export default Chat;
-
-
