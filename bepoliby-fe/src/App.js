@@ -6,6 +6,7 @@ import Chat from './Chat/Chat';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
+import axios from "axios";
 
 function decodeJwt(token) {
   try {
@@ -22,6 +23,14 @@ function decodeJwt(token) {
   } catch {
     return null;
   }
+}
+
+// Helper per creare istanza axios con header Authorization Bearer
+function axiosAuth(token) {
+  return axios.create({
+    baseURL: process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com",
+    headers: { Authorization: `Bearer ${token}` }
+  });
 }
 
 function InfoCenter() {
@@ -43,56 +52,72 @@ function InfoCenter() {
 }
 
 function App() {
-  const [{ user }, dispatch] = useStateValue();
-  const API_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
+  const [{ user, token }, dispatch] = useStateValue();
 
+  // Recupero token e user da URL e salvo in sessionStorage + context
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get("token");
+    const tokenFromUrl = urlParams.get("token");
 
-    if (token) {
-      try {
-        const decoded = decodeJwt(token);
-        const { id, nome, username } = decoded || {};
+    if (tokenFromUrl) {
+      const decoded = decodeJwt(tokenFromUrl);
+      const { id, nome, username } = decoded || {};
 
-        if (id && nome && username) {
-          sessionStorage.setItem("token", token);
-          sessionStorage.setItem("user", JSON.stringify({ id, nome, username }));
+      if (id && nome && username) {
+        sessionStorage.setItem("token", tokenFromUrl);
+        sessionStorage.setItem("user", JSON.stringify({ uid: id, nome, username }));
 
-          dispatch({
-            type: "SET_USER",
-            user: { uid: id, nome, username },
-            token
-          });
+        dispatch({
+          type: "SET_USER",
+          user: { uid: id, nome, username },
+          token: tokenFromUrl
+        });
 
-          console.log("✅ Token ricevuto da URL e utente impostato:", { id, nome, username });
-
-          window.history.replaceState(null, "", window.location.pathname);
-        }
-      } catch (err) {
-        console.error("❌ Errore decoding token dall'URL:", err);
+        window.history.replaceState(null, "", window.location.pathname);
+        console.log("✅ Token da URL salvato e utente impostato", { id, nome, username });
       }
     }
   }, [dispatch]);
 
+  // Recupero token e user da sessionStorage al reload
   useEffect(() => {
+    const tokenStored = sessionStorage.getItem("token");
     const userString = sessionStorage.getItem("user");
-    const token = sessionStorage.getItem("token");
 
-    if (userString && token) {
+    if (tokenStored && userString) {
       try {
         const userData = JSON.parse(userString);
         dispatch({
           type: "SET_USER",
-          user: { uid: userData.id || userData.uid, nome: userData.nome, username: userData.username },
-          token
+          user: {
+            uid: userData.uid || userData.id,
+            nome: userData.nome,
+            username: userData.username
+          },
+          token: tokenStored
         });
         console.log("🟢 Utente caricato da sessionStorage:", userData);
-      } catch {
-        console.warn("⚠️ user in sessionStorage non valido");
+      } catch (e) {
+        console.warn("⚠️ Errore parsing user in sessionStorage", e);
       }
     }
   }, [dispatch]);
+
+  // Esempio: fetch utenti protetta con token, da chiamare in componenti come Sidebar
+  async function fetchUsers() {
+    if (!token) {
+      console.warn("Token mancante, impossibile fetchare utenti");
+      return [];
+    }
+    try {
+      const api = axiosAuth(token);
+      const res = await api.get("/api/v1/users");
+      return res.data.users || [];
+    } catch (err) {
+      console.error("Errore fetch utenti:", err.response?.data || err.message);
+      return [];
+    }
+  }
 
   return (
     <div className="app">
@@ -100,10 +125,10 @@ function App() {
         <Router>
           {user ? (
             <>
-              <Sidebar />
+              <Sidebar fetchUsers={fetchUsers} />
               <Routes>
                 <Route path="/" element={<InfoCenter />} />
-                <Route path="/rooms/:roomId" element={<Chat />} />
+                <Route path="/rooms/:roomId" element={<Chat token={token} user={user} />} />
               </Routes>
             </>
           ) : (
