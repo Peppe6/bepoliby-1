@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -72,40 +71,44 @@ const Sidebar = () => {
 
     const channel = pusher.subscribe('rooms');
 
-  channel.bind('new-message', (data) => {
-  if (!data || !data.room || !data.message) return;
+    channel.bind('new-message', (data) => {
+      if (!data || !data.room || !data.message) return;
 
-  setRooms(prevRooms => {
-    const idx = prevRooms.findIndex(r => r._id === data.room._id);
+      setRooms(prevRooms => {
+        const idx = prevRooms.findIndex(r => r._id === data.room._id);
 
-    if (idx !== -1) {
-      // Aggiorna stanza esistente
-      const updatedRooms = [...prevRooms];
-      updatedRooms[idx] = {
-        ...data.room,
-        lastMessageText: data.message.message,
-        lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
-      };
-      return updatedRooms;
-    } else {
-      // Aggiunge nuova stanza
-      return [
-        {
-          ...data.room,
-          lastMessageText: data.message.message,
-          lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
-        },
-        ...prevRooms
-      ];
-    }
-  });
-});
-
+        if (idx !== -1) {
+          // Aggiorna stanza esistente
+          const updatedRooms = [...prevRooms];
+          updatedRooms[idx] = {
+            ...data.room,
+            lastMessageText: data.message.message,
+            lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
+          };
+          return updatedRooms;
+        } else {
+          // Aggiunge nuova stanza
+          return [
+            {
+              ...data.room,
+              lastMessageText: data.message.message,
+              lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
+            },
+            ...prevRooms
+          ];
+        }
+      });
+    });
 
     return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
-      pusher.disconnect();
+      // Evita errore WebSocket se non è in stato "connected"
+      if (pusher.connection.state === "connected") {
+        channel.unbind_all();
+        channel.unsubscribe();
+        pusher.disconnect();
+      } else {
+        channel.unbind_all();
+      }
     };
   }, [user, token]);
 
