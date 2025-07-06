@@ -41,6 +41,7 @@ const Sidebar = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
+
         const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
@@ -50,7 +51,6 @@ const Sidebar = () => {
           usersMap[u._id] = u.nome || u.username || "Sconosciuto";
         });
         setAllUsers(usersMap);
-
       } catch (err) {
         console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
       } finally {
@@ -73,20 +73,23 @@ const Sidebar = () => {
     const channel = pusher.subscribe('rooms');
 
     channel.bind('new-message', (data) => {
+      if (!data || !data.roomId || !data.message) return;
+
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.roomId);
         if (idx !== -1) {
           const updatedRooms = [...prevRooms];
+          const room = updatedRooms[idx];
           updatedRooms[idx] = {
-            ...updatedRooms[idx],
+            ...room,
+            messages: [...(room.messages || []), data.message],
             lastMessageText: data.message.message,
-            messages: [...(updatedRooms[idx].messages || []), data.message],
             lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
           };
           return updatedRooms;
         } else {
-          // Se la stanza non è in lista, aggiungila (data.room deve contenere i dati della stanza)
-          return [data.room, ...prevRooms];
+          console.warn("Nuova room ricevuta ma mancano dati completi:", data);
+          return prevRooms;
         }
       });
     });
@@ -96,7 +99,6 @@ const Sidebar = () => {
       channel.unsubscribe();
       pusher.disconnect();
     };
-
   }, [user, token]);
 
   const handleUserSelect = async (selectedUser) => {
@@ -143,14 +145,16 @@ const Sidebar = () => {
     return <div className="sidebar_loading">Utente non autenticato</div>;
   }
 
-  // Pre-elaboro stanze con dati utili per filtro e rendering
-  const filteredRooms = rooms
+  const filteredRooms = (rooms || [])
+    .filter(room => room && room.members && Array.isArray(room.members))
     .map(room => {
-      // Trova l'ID dell'altro membro della stanza (diverso da me)
-      const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
-      const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
+      const members = room.members.map(m => (typeof m === "string" ? m : m._id));
+      const otherUserUid = members.find(uid => uid !== user.uid);
+      const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name || "Utente") : "Chat";
       const messages = room.messages || [];
-      const lastMessage = room.lastMessageText || (messages.length ? messages[messages.length - 1].message : "");
+      const lastMessage = room.lastMessageText ||
+        (messages.length && messages[messages.length - 1]?.message) || "";
+
       return { room, otherUserUid, displayName, lastMessage };
     })
     .filter(({ displayName }) =>
