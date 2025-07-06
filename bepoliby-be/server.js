@@ -184,14 +184,14 @@ app.get("/api/v1/users", async (req, res) => {
   }
 });
 
-// MODIFICA PRINCIPALE: popolare i membri per poter mostrare dati utenti in frontend
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
-    const data = await Rooms.find({ members: req.user.uid })
+    const data = await Rooms.find({ members: req.user.id })
       .populate('members', 'nome username')
       .sort({ lastMessageTimestamp: -1 });
     res.status(200).send(data);
   } catch (err) {
+    console.error("❌ Errore nel recupero stanze:", err);
     res.status(500).json({ error: "Errore nel recupero stanze" });
   }
 });
@@ -200,7 +200,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
-    if (!room.members.includes(req.user.uid)) return res.status(403).json({ error: "Accesso negato" });
+    if (!room.members.includes(req.user.id)) return res.status(403).json({ error: "Accesso negato" });
     res.status(200).json(room);
   } catch (err) {
     res.status(500).json({ error: "Errore nel recupero stanza" });
@@ -253,7 +253,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    if (!room.members.includes(req.user.uid)) {
+    if (!room.members.includes(req.user.id)) {
       return res.status(403).json({ error: "Accesso negato" });
     }
 
@@ -261,7 +261,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       message,
       name: req.user.nome || req.user.username || "Anonimo",
       timestamp: new Date(),
-      uid: req.user.uid,
+      uid: req.user.id,
     };
 
     room.messages.push(newMessage);
