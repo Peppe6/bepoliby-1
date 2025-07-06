@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
 import { Avatar, IconButton } from '@mui/material';
@@ -16,74 +16,99 @@ function Chat() {
   const [lastSeen, setLastSeen] = useState("");
   const [roomMessages, setRoomMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [{ user }] = useStateValue();
+  const [{ user, token }] = useStateValue();
+  const messagesEndRef = useRef(null);
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
+  // Scrolla in fondo alla chat
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Aggiorna input con emoji scelta
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
   };
 
+  // Configura axios header Authorization e withCredentials globali
+  useEffect(() => {
+    axios.defaults.withCredentials = true;
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
+
+  // Effettua subscribe a Pusher per messaggi in tempo reale
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe(`room_${roomId}`);
 
-    channel.bind('inserted', function (payload) {
+    channel.bind('inserted', (payload) => {
       const newMsg = payload.message;
+
       setRoomMessages(prevMessages => {
+        // Sostituisci messaggio temporaneo con quello definitivo
         const tempIndex = prevMessages.findIndex(m =>
           m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
           m.uid === newMsg.uid
         );
-
         if (tempIndex !== -1) {
           const copy = [...prevMessages];
           copy[tempIndex] = newMsg;
           return copy;
         }
-
+        // Evita duplicati
         if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
+
         return [...prevMessages, newMsg];
       });
+
       setLastSeen(newMsg.timestamp);
     });
 
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
+      pusher.disconnect();
     };
   }, [roomId, user?.uid]);
 
+  // Carica dati stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
-      if (!roomId) return;
-      if (!user?.uid) return; // Aspetta user prima di agire
+      if (!roomId || !user?.uid) return;
 
       try {
-        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`, {
-          withCredentials: true
-        });
+        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         setRoomName(roomRes.data.name);
 
-        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`, {
-          withCredentials: true
-        });
+        const messagesRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}/messages`);
         setRoomMessages(messagesRes.data);
 
         const lastMsg = messagesRes.data.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
+
       } catch (err) {
         console.error("Errore caricamento chat:", err);
-        navigate("/"); // Naviga via solo se c'è errore reale
+        navigate("/"); // reindirizza in caso di errore
       }
     };
 
     fetchRoomData();
-  }, [roomId, user?.uid]);
+  }, [roomId, user?.uid, apiUrl, navigate]);
 
+  // Scrolla in fondo ogni volta che cambiano i messaggi
+  useEffect(() => {
+    scrollToBottom();
+  }, [roomMessages]);
+
+  // Invia messaggio (POST)
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !user?.uid) return;
@@ -101,11 +126,10 @@ function Chat() {
     setInput("");
 
     try {
-      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage, {
-        withCredentials: true
-      });
+      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
+      // Rimuove messaggio temporaneo se errore
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
       alert("Errore nell'invio del messaggio, riprova.");
     }
@@ -177,10 +201,11 @@ function Chat() {
             </div>
           );
         })}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className='Chat_footer'>
-        <IconButton onClick={() => setShowEmojiPicker(!showEmojiPicker)}>
+        <IconButton onClick={() => setShowEmojiPicker(!showEmojiPicker)} aria-label="Seleziona emoji">
           <InsertEmoticon />
         </IconButton>
         <form onSubmit={sendMessage}>
@@ -189,6 +214,7 @@ function Chat() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Scrivi un messaggio..."
             type="text"
+            aria-label="Campo messaggio"
           />
           <button type="submit" disabled={!input.trim()}>Invia</button>
         </form>
@@ -208,3 +234,4 @@ function Chat() {
 }
 
 export default Chat;
+
