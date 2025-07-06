@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -15,23 +14,17 @@ const Utente = require('./model/dbUser');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// Middleware
+// === Middleware ===
 app.use(express.json());
-app.use(helmet());
-app.use(session({
-  secret: process.env.SESSION_SECRET || "supersecret",
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false }
-}));
 
-// CORS
+// CORS - DEVE venire prima di helmet
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
   "https://bepoliby-1-2.onrender.com",
   "http://localhost:3000"
 ];
+
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
@@ -45,14 +38,42 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
-// MongoDB
+// Helmet con CSP configurata
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: [
+        "'self'",
+        "https://bepoliby-1-2.onrender.com",
+        "https://bepoliby-1.onrender.com",
+        "https://*.pusher.com",
+        "wss://*.pusher.com"
+      ],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.pusher.com"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      frameSrc: ["'self'"]
+    }
+  }
+}));
+
+// Sessione
+app.use(session({
+  secret: process.env.SESSION_SECRET || "supersecret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
+
+// === MongoDB ===
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => console.log("✅ MongoDB connected"))
   .catch((err) => console.error("❌ MongoDB connection error:", err));
 
-// Pusher setup
+// === Pusher ===
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
   key: process.env.PUSHER_KEY,
@@ -85,10 +106,10 @@ db.once("open", () => {
   });
 });
 
-// Test route
+// === Test Route ===
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// GET user photo
+// === Route: Foto profilo utente ===
 app.get('/api/user-photo/:userId', async (req, res) => {
   try {
     const user = await Utente.findById(req.params.userId);
@@ -102,7 +123,7 @@ app.get('/api/user-photo/:userId', async (req, res) => {
   }
 });
 
-// GET JWT from session
+// === Route: JWT da sessione ===
 app.get("/api/auth-token", (req, res) => {
   const sessionUser = req.session?.user;
   if (!sessionUser || !sessionUser._id || !sessionUser.username) {
@@ -178,7 +199,7 @@ app.get("/api/v1/users", async (req, res) => {
 
 // === ROTTE STANZE ===
 
-// GET stanze dell'utente
+// Stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const data = await Rooms.find({ members: req.user.uid }).sort({ lastMessageTimestamp: -1 });
@@ -188,7 +209,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// GET stanza per ID
+// Stanza specifica
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId);
@@ -200,7 +221,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ POST: crea nuova stanza (evita duplicati e risponde sempre 200 se esiste)
+// Crea stanza (evita duplicati)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -211,13 +232,12 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const sortedMembers = members.map(m => m.toString()).sort();
 
   try {
-    // Qui la query corretta per evitare duplicati
     const existingRoom = await Rooms.findOne({
       members: { $all: sortedMembers, $size: sortedMembers.length }
     });
 
     if (existingRoom) {
-      return res.status(200).json(existingRoom); // stanza esistente: niente errore
+      return res.status(200).json(existingRoom);
     }
 
     const newRoom = new Rooms({
@@ -235,7 +255,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// POST: aggiunta messaggio
+// Invia messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
@@ -277,7 +297,8 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   }
 });
 
-// Start server
+// === Avvio server ===
 app.listen(port, () => {
   console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
+
