@@ -15,9 +15,9 @@ import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
 
-// Qui metti i tuoi dati Pusher reali:
+// I tuoi dati Pusher:
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
-const PUSHER_CLUSTER = "eu"; 
+const PUSHER_CLUSTER = "eu";
 
 const Sidebar = () => {
   const [rooms, setRooms] = useState([]);
@@ -62,10 +62,9 @@ const Sidebar = () => {
 
     fetchData();
 
-    // Attivazione Pusher per aggiornamenti realtime delle stanze
     const pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
-      authEndpoint: `${API_BASE_URL}/pusher/auth`, // se usi autenticazione privata
+      authEndpoint: `${API_BASE_URL}/pusher/auth`,
       auth: {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -73,14 +72,10 @@ const Sidebar = () => {
       }
     });
 
-    // Sottoscrivi a un canale globale oppure ai singoli canali delle stanze
-    // Qui esempio di canale globale "rooms"
     const channel = pusher.subscribe('rooms');
 
     channel.bind('new-message', (data) => {
-      // Quando arriva un messaggio nuovo, aggiorna le stanze
       setRooms(prevRooms => {
-        // Se la stanza esiste, aggiorna il last message, altrimenti aggiungi stanza nuova
         const idx = prevRooms.findIndex(r => r._id === data.roomId);
         if (idx !== -1) {
           const updatedRooms = [...prevRooms];
@@ -91,7 +86,6 @@ const Sidebar = () => {
           };
           return updatedRooms;
         } else {
-          // Stanza nuova, aggiungi in testa
           return [data.room, ...prevRooms];
         }
       });
@@ -113,7 +107,8 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
-      const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
+      // Il nome della stanza sarà solo il nome dell'altro utente, non il tuo
+      const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
       const config = {
         headers: {
@@ -194,7 +189,7 @@ const Sidebar = () => {
           })
           .map(room => {
             const messages = room.messages || [];
-            const lastMessage = messages.length ? messages[messages.length - 1].message : "";
+            const lastMessage = room.lastMessageText || (messages.length ? messages[messages.length - 1].message : "");
             const otherUserUid = (room.members || []).find(uid => uid !== user.uid);
             const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name) : room.name;
 
