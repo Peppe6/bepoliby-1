@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -271,7 +270,14 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     res.status(201).json(newMessage);
 
+    // Evento per la room specifica 
     PusherClient.trigger(`room_${roomId}`, "inserted", {
+      roomId,
+      message: newMessage
+    });
+
+    // 🔥 Evento globale per la Sidebar
+    PusherClient.trigger("rooms", "new-message", {
       roomId,
       message: newMessage
     });
@@ -285,3 +291,4 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, '0.0.0.0', () => {
   console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
+
