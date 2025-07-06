@@ -257,8 +257,9 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    // Cambiato controllo per ObjectId vs stringa
-    const isMember = room.members.some(memberId => memberId.toString() === req.user.uid.toString());
+    const isMember = room.members.some(
+      memberId => memberId.toString() === req.user.uid.toString()
+    );
     if (!isMember) {
       return res.status(403).json({ error: "Accesso negato" });
     }
@@ -267,7 +268,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       message,
       name: req.user.nome || req.user.username || "Anonimo",
       timestamp: new Date(),
-      uid: req.user.uid,
+      uid: req.user.uid.toString(),
     };
 
     room.messages.push(newMessage);
@@ -275,19 +276,24 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     await room.save();
 
+    // Invia la risposta al client PRIMA di triggerare gli eventi Pusher
     res.status(201).json(newMessage);
 
-    // Evento per la room specifica 
-    PusherClient.trigger(`room_${roomId}`, "inserted", {
-      roomId,
-      message: newMessage
-    });
+    try {
+      await PusherClient.trigger(`room_${roomId.toString()}`, "inserted", {
+        roomId: roomId.toString(),
+        message: newMessage,
+      });
 
-    // Evento globale per la Sidebar
-    PusherClient.trigger("rooms", "new-message", {
-      roomId,
-      message: newMessage
-    });
+      await PusherClient.trigger("rooms", "new-message", {
+        roomId: roomId.toString(),
+        message: newMessage,
+      });
+
+    } catch (pusherErr) {
+      console.error("Errore durante trigger Pusher:", pusherErr);
+      // Non bloccare la risposta al client, solo loggare l’errore
+    }
 
   } catch (err) {
     console.error("❌ Errore messaggio:", err);
