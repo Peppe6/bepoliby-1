@@ -1,4 +1,3 @@
-
 // FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
@@ -40,11 +39,11 @@ function InfoCenter() {
     <div className="info-center">
       <div className="info-center-item" />
       <Avatar
-        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}&background=random&color=fff`}
+        src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || user?.username || "Utente")}&background=random&color=fff`}
         onError={(e) => { e.currentTarget.src = "/default-avatar.png"; }}
       />
       <div className="info-center-item" />
-      {user?.nome || "Utente"}
+      {user?.nome || user?.username || "Utente"}
       <div className="info-center-item" />
       Seleziona una Chat!
     </div>
@@ -54,7 +53,7 @@ function InfoCenter() {
 function App() {
   const [{ user, token }, dispatch] = useStateValue();
 
-  // ✅ Estrae token dall’URL
+  // Estrae token dall’URL e salva in sessionStorage + stato globale
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get("token");
@@ -63,7 +62,7 @@ function App() {
       const decoded = decodeJwt(tokenFromUrl);
       const { id, nome, username } = decoded || {};
 
-      if (id && nome && username) {
+      if (id && (nome || username)) {
         sessionStorage.setItem("token", tokenFromUrl);
         sessionStorage.setItem("user", JSON.stringify({ uid: id, nome, username }));
 
@@ -79,7 +78,7 @@ function App() {
     }
   }, [dispatch]);
 
-  // ✅ Ripristina user/token da sessionStorage
+  // Ripristina user/token da sessionStorage
   useEffect(() => {
     const tokenStored = sessionStorage.getItem("token");
     const userString = sessionStorage.getItem("user");
@@ -103,7 +102,7 @@ function App() {
     }
   }, [dispatch]);
 
-  // ✅ IMPOSTA HEADER GLOBALE AXIOS
+  // Imposta header globale Axios con token, se presente
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -113,7 +112,7 @@ function App() {
     }
   }, [token]);
 
-  // Esempio uso axiosAuth (non obbligatorio se sopra è fatto)
+  // Funzione per fetchare utenti con token
   async function fetchUsers() {
     if (!token) {
       console.warn("Token mancante, impossibile fetchare utenti");
@@ -122,9 +121,16 @@ function App() {
     try {
       const api = axiosAuth(token);
       const res = await api.get("/api/v1/users");
-      return res.data.users || [];
+      // API restituisce array utenti direttamente
+      return res.data || [];
     } catch (err) {
       console.error("Errore fetch utenti:", err.response?.data || err.message);
+      if (err.response?.status === 401) {
+        // Token non valido/scaduto: logout
+        sessionStorage.clear();
+        dispatch({ type: "SET_USER", user: null, token: null });
+        window.location.reload();
+      }
       return [];
     }
   }
@@ -151,3 +157,4 @@ function App() {
 }
 
 export default App;
+
