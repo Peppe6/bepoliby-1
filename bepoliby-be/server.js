@@ -276,17 +276,22 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     await room.save();
 
-    // Invia la risposta al client PRIMA di triggerare gli eventi Pusher
+    // Ricarica la stanza con i dati completi dei membri
+    const fullRoom = await Rooms.findById(roomId).populate('members', 'nome username');
+
+    // Invia la risposta al client prima degli eventi
     res.status(201).json(newMessage);
 
     try {
-      await PusherClient.trigger(`room_${roomId.toString()}`, "inserted", {
-        roomId: roomId.toString(),
+      // Evento per la stanza specifica
+      await PusherClient.trigger(`room_${roomId}`, "inserted", {
+        roomId,
         message: newMessage,
       });
 
+      // Evento globale con la stanza completa per Sidebar
       await PusherClient.trigger("rooms", "new-message", {
-        roomId: roomId.toString(),
+        room: fullRoom,
         message: newMessage,
       });
 
