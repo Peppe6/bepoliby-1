@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -17,12 +18,12 @@ const port = process.env.PORT || 9000;
 // === Middleware ===
 app.use(express.json());
 
-// CORS - DEVE venire prima di helmet
+// CORS - deve venire prima di helmet
 const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
   "https://bepoliby-1-2.onrender.com",
-  "http://localhost:3000"
+  "http://localhost:10000,
 ];
 
 app.use(cors({
@@ -106,10 +107,12 @@ db.once("open", () => {
   });
 });
 
-// === Test Route ===
+// === Rotte ===
+
+// Test
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// === Route: Foto profilo utente ===
+// Foto profilo
 app.get('/api/user-photo/:userId', async (req, res) => {
   try {
     const user = await Utente.findById(req.params.userId);
@@ -123,7 +126,7 @@ app.get('/api/user-photo/:userId', async (req, res) => {
   }
 });
 
-// === Route: JWT da sessione ===
+// Token da sessione
 app.get("/api/auth-token", (req, res) => {
   const sessionUser = req.session?.user;
   if (!sessionUser || !sessionUser._id || !sessionUser.username) {
@@ -139,17 +142,13 @@ app.get("/api/auth-token", (req, res) => {
   res.json({ token });
 });
 
-// === ROTTE UTENTI ===
-
 // Ricerca utenti
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
   let page = parseInt(req.query.page) || 1;
   let limit = parseInt(req.query.limit) || 10;
 
-  if (!query) {
-    return res.status(400).json({ message: "Query mancante" });
-  }
+  if (!query) return res.status(400).json({ message: "Query mancante" });
 
   if (page < 1) page = 1;
   if (limit < 1) limit = 10;
@@ -158,7 +157,6 @@ app.get("/api/v1/users/search", async (req, res) => {
 
   try {
     const regex = new RegExp(query, 'i');
-
     const total = await Utente.countDocuments({
       $or: [{ username: regex }, { nome: regex }]
     });
@@ -196,8 +194,6 @@ app.get("/api/v1/users", async (req, res) => {
     res.status(500).json({ error: "Errore nel recupero utenti" });
   }
 });
-
-// === ROTTE STANZE ===
 
 // Stanze dell'utente
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
@@ -260,9 +256,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
 
-  if (!message) {
-    return res.status(400).json({ error: "Messaggio mancante" });
-  }
+  if (!message) return res.status(400).json({ error: "Messaggio mancante" });
 
   try {
     const room = await Rooms.findById(roomId);
@@ -297,8 +291,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   }
 });
 
-// === Avvio server ===
-app.listen(port, () => {
+// === Avvio server con IP compatibile con Render ===
+app.listen(port, '0.0.0.0', () => {
   console.log(`🌐 Server in esecuzione su http://localhost:${port}`);
 });
-
