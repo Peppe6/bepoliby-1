@@ -23,7 +23,7 @@ const allowedOrigins = [
   "https://bepoli.onrender.com",
   "https://bepoliby-1.onrender.com",
   "https://bepoliby-1-2.onrender.com",
-  "http://localhost:10000,
+  "http://localhost:3000,
 ];
 
 app.use(cors({
