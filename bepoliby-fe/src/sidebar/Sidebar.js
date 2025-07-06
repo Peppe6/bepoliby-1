@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -24,17 +23,15 @@ const Sidebar = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
-  // Imposta l'header Authorization per axios ogni volta che cambia il token
   useEffect(() => {
+    axios.defaults.withCredentials = true;
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } else {
       delete axios.defaults.headers.common['Authorization'];
     }
-    axios.defaults.withCredentials = true;
   }, [token]);
 
-  // Fetch stanze + utenti appena l'utente è disponibile
   useEffect(() => {
     if (!user?.uid) return;
 
@@ -42,11 +39,9 @@ const Sidebar = () => {
       try {
         setLoading(true);
 
-        // Fetch stanze (rooms)
         const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
-        // Fetch utenti (users)
         const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
@@ -63,7 +58,6 @@ const Sidebar = () => {
     fetchData();
   }, [user]);
 
-  // Quando seleziono un utente nella ricerca, creo (o riuso) la stanza e vado alla chat
   const handleUserSelect = async (selectedUser) => {
     if (!user?.uid) {
       alert("Devi effettuare il login per iniziare una chat.");
@@ -74,9 +68,17 @@ const Sidebar = () => {
       const membri = [user.uid, selectedUser._id];
       const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username || "Utente"}`;
 
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        withCredentials: true
+      };
+
       const res = await axios.post(
         `${API_BASE_URL}/api/v1/rooms`,
-        { name: roomName, members: membri }
+        { name: roomName, members: membri },
+        config
       );
 
       const newRoomId = res.data?._id || res.data?.roomId;
@@ -84,7 +86,6 @@ const Sidebar = () => {
         navigate(`/rooms/${newRoomId}`);
       }
     } catch (err) {
-      // Se stanza esiste già, backend ritorna roomId, quindi navigo lì
       const data = err.response?.data;
       if (data?.roomId) {
         navigate(`/rooms/${data.roomId}`);
