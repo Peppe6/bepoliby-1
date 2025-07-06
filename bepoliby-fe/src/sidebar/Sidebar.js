@@ -65,9 +65,9 @@ const Sidebar = () => {
 
     try {
       const membri = [user.uid, selectedUser._id];
-      const roomName = `${user.nome} - ${selectedUser.nome || selectedUser.username}`;
 
-      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { name: roomName, members: membri });
+      // Mando solo i membri, senza name
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, { members: membri });
 
       const newRoomId = res.data?._id || res.data?.roomId;
       if (newRoomId) {
