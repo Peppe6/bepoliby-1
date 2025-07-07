@@ -46,11 +46,10 @@ const Sidebar = () => {
         const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
-         usersMap[u._id] = {
-  name: u.nome || u.username || "Sconosciuto",
-  profilePicUrl: u.profilePicUrl || null, // o il campo corretto
-};
-
+          usersMap[u._id] = {
+            name: u.nome || u.username || "Sconosciuto",
+            profilePicUrl: u.profilePicUrl || null,
+          };
         });
         setAllUsers(usersMap);
       } catch (err) {
@@ -77,16 +76,8 @@ const Sidebar = () => {
     channel.bind('new-message', (data) => {
       if (!data || !data.room || !data.message) return;
 
-      console.log("📥 Evento Pusher ricevuto:", data);
-      console.log("👤 Utente loggato:", user.uid);
-
       const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
-      console.log("👥 Membri della stanza:", membersIds);
-
-      if (!membersIds.map(String).includes(String(user.uid))) {
-        console.log("⛔ Utente non incluso in questa stanza. Ignorata.");
-        return;
-      }
+      if (!membersIds.map(String).includes(String(user.uid))) return;
 
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
@@ -110,7 +101,6 @@ const Sidebar = () => {
       });
     });
 
-    // ✅ Cleanup Pusher — fuori da channel.bind!
     return () => {
       if (pusher.connection.state === "connected") {
         channel.unbind_all();
@@ -166,10 +156,11 @@ const Sidebar = () => {
     .map(room => {
       const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
       const otherUserId = membersIds.find(id => id !== user.uid);
-      const displayName = allUsers[otherUserId] || room.name || "Chat";
+      const displayName = allUsers[otherUserId]?.name || room.name || "Chat";
+      const avatarSrc = allUsers[otherUserId]?.profilePicUrl || null;
       const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
-      return { room, displayName, lastMessage };
+      return { room, displayName, avatarSrc, lastMessage };
     })
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -217,12 +208,13 @@ const Sidebar = () => {
       </div>
 
       <div className="sidebar_chats">
-        {filteredRooms.map(({ room, displayName, lastMessage }) => (
+        {filteredRooms.map(({ room, displayName, lastMessage, avatarSrc }) => (
           <SidebarChat
             key={room._id}
             id={room._id}
             name={displayName}
             lastMessageText={lastMessage}
+            avatarSrc={avatarSrc}
             selected={roomId === room._id}
           />
         ))}
@@ -232,3 +224,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
