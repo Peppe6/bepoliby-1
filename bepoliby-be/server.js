@@ -98,22 +98,22 @@ app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
   }
 });
 
-// Lista utenti base con URL immagine profilo
-app.get("/api/v1/users", verifyToken, async (req, res) => {
-  try {
-    const users = await Utente.find({}, { _id: 1, nome: 1, username: 1 });
-    const usersWithPicUrl = users.map(u => ({
-      _id: u._id,
-      nome: u.nome,
-      username: u.username,
-      profilePicUrl: `/api/v1/users/${u._id}/profile-pic`
-    }));
-    res.status(200).json(usersWithPicUrl);
-  } catch (err) {
-    console.error("Errore recupero utenti:", err);
-    res.status(500).json({ error: "Errore nel recupero utenti" });
-  }
-});
+const results = await Utente.find(filter)
+  .skip((page - 1) * limit)
+  .limit(limit)
+  .select("_id nome username profilePic") // attenzione, deve essere profilePic, non profilePicUrl
+  .exec();
+
+const resultsWithPics = results.map(user => ({
+  _id: user._id,
+  nome: user.nome,
+  username: user.username,
+  profilePicUrl: user.profilePic?.data
+    ? `data:${user.profilePic.contentType};base64,${user.profilePic.data.toString('base64')}`
+    : null,
+}));
+
+res.json({ results: resultsWithPics, total });
 
 // Ricerca utenti
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
