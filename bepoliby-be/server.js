@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -6,7 +5,6 @@ const cors = require('cors');
 const helmet = require('helmet');
 const session = require('express-session');
 const Pusher = require('pusher');
-const jwt = require('jsonwebtoken');
 const verifyToken = require('./verifyToken');
 
 const Rooms = require('./model/dbRooms');
@@ -84,43 +82,6 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 });
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
-
-// 🔍 Endpoint ricerca utenti
-app.get("/api/v1/users/search", async (req, res) => {
-  const query = req.query.q;
-  const page = Math.max(parseInt(req.query.page) || 1, 1);
-  const limit = Math.max(parseInt(req.query.limit) || 10, 1);
-  const skip = (page - 1) * limit;
-
-  if (!query) return res.status(400).json({ message: "Query mancante" });
-
-  try {
-    const regex = new RegExp(query, 'i');
-    const total = await Utente.countDocuments({
-      $or: [{ username: regex }, { nome: regex }]
-    });
-
-    const results = await Utente.find(
-      { $or: [{ username: regex }, { nome: regex }] },
-      'username nome _id'
-    ).skip(skip).limit(limit);
-
-    res.json({
-      page,
-      limit,
-      total,
-      results: results.map(u => ({
-        id: u._id,
-        username: u.username,
-        nome: u.nome,
-        profilePicUrl: `/api/user-photo/${u._id}`
-      }))
-    });
-  } catch (err) {
-    console.error("❌ Errore ricerca utenti:", err);
-    res.status(500).json({ message: "Errore ricerca" });
-  }
-});
 
 app.get("/api/v1/users", async (req, res) => {
   try {
@@ -205,10 +166,10 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   if (!message) return res.status(400).json({ error: "Messaggio mancante" });
 
   try {
-    const room = await Rooms.findById(roomId).populate('members', 'nome username');
+    const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    const isMember = room.members.some(member => member._id.toString() === req.user.uid);
+    const isMember = room.members.some(member => member.toString() === req.user.uid);
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     const newMessage = {
@@ -222,6 +183,9 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     room.lastMessageTimestamp = newMessage.timestamp;
     await room.save();
 
+    // ✅ Popola membri prima di inviare su Pusher
+    await room.populate('members', 'nome username');
+
     const simplifiedRoom = {
       _id: room._id.toString(),
       name: room.name,
@@ -234,19 +198,13 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       lastMessageTimestamp: newMessage.timestamp,
     };
 
-    // LOG: prima di trigger Pusher
-    console.log("📤 Inviando messaggio via Pusher:");
-    console.log("roomId:", roomId);
-    console.log("message:", newMessage);
-    console.log("simplifiedRoom:", simplifiedRoom);
+    console.log("🔁 Invio su Pusher: ", simplifiedRoom);
 
     await PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
     await PusherClient.trigger("rooms", "new-message", {
       room: simplifiedRoom,
       message: newMessage,
     });
-
-    console.log("✅ Evento Pusher inviato con successo");
 
     res.status(201).json(newMessage);
   } catch (err) {
