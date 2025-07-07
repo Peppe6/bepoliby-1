@@ -13,7 +13,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
-
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
 const PUSHER_CLUSTER = "eu";
 
@@ -78,7 +77,6 @@ const Sidebar = () => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
 
         if (idx !== -1) {
-          // Aggiorna stanza esistente
           const updatedRooms = [...prevRooms];
           updatedRooms[idx] = {
             ...data.room,
@@ -87,7 +85,6 @@ const Sidebar = () => {
           };
           return updatedRooms;
         } else {
-          // Aggiunge nuova stanza
           return [
             {
               ...data.room,
@@ -101,7 +98,6 @@ const Sidebar = () => {
     });
 
     return () => {
-      // Evita errore WebSocket se non è in stato "connected"
       if (pusher.connection.state === "connected") {
         channel.unbind_all();
         channel.unsubscribe();
@@ -119,7 +115,8 @@ const Sidebar = () => {
     }
 
     try {
-      const membri = [user.uid, selectedUser._id];
+      // ✅ Ordina gli ID per evitare duplicati
+      const membri = [user.uid, selectedUser._id].sort((a, b) => a.localeCompare(b));
       const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
       const config = {
@@ -148,25 +145,19 @@ const Sidebar = () => {
     }
   };
 
-  if (loading) {
-    return <div className="sidebar_loading">Caricamento...</div>;
-  }
-
-  if (!user) {
-    return <div className="sidebar_loading">Utente non autenticato</div>;
-  }
+  if (loading) return <div className="sidebar_loading">Caricamento...</div>;
+  if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
   const filteredRooms = (rooms || [])
     .filter(room => room && room.members && Array.isArray(room.members))
     .map(room => {
       const members = room.members.map(m => (typeof m === "string" ? m : m._id));
-      const otherUserUid = members.find(uid => uid !== user.uid);
-      const displayName = otherUserUid ? (allUsers[otherUserUid] || room.name || "Utente") : "Chat";
+      const otherUser = room.members.find(m => m._id?.toString() !== user.uid && m._id) || {};
+      const displayName = otherUser.nome || otherUser.username || room.name || "Chat";
       const messages = room.messages || [];
-      const lastMessage = room.lastMessageText ||
-        (messages.length && messages[messages.length - 1]?.message) || "";
+      const lastMessage = room.lastMessageText || (messages.length && messages.at(-1)?.message) || "";
 
-      return { room, otherUserUid, displayName, lastMessage };
+      return { room, displayName, lastMessage };
     })
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
