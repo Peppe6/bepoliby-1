@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -73,29 +75,38 @@ const Sidebar = () => {
     channel.bind('new-message', (data) => {
       if (!data || !data.room || !data.message) return;
 
+      // Mappo membri in array di stringhe userId
+      const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
+
+      // Ignoro stanza se non contiene l'utente corrente
+      if (!membersIds.includes(user.uid)) return;
+
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
 
         if (idx !== -1) {
+          // Aggiorna stanza esistente
           const updatedRooms = [...prevRooms];
           updatedRooms[idx] = {
-            ...data.room,
+            ...updatedRooms[idx],
             lastMessageText: data.message.message,
-            lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
+            lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
           };
-          // Ordino per data messaggio più recente
+          // Ordina per ultimo messaggio più recente
           return updatedRooms.sort((a, b) =>
             new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)
           );
         } else {
-          // Inserisco nuova stanza in cima
+          // Nuova stanza, aggiungi in cima
+          if (!data.room._id) return prevRooms; // Sicurezza
+
           return [
             {
               ...data.room,
               lastMessageText: data.message.message,
-              lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
+              lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
             },
-            ...prevRooms
+            ...prevRooms,
           ];
         }
       });
@@ -152,7 +163,7 @@ const Sidebar = () => {
   if (loading) return <div className="sidebar_loading">Caricamento...</div>;
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
-  // Filtro e preparo le stanze per visualizzazione
+  // Preparo le stanze filtrate e ordinate
   const filteredRooms = (rooms || [])
     .filter(room => room && room.members && Array.isArray(room.members))
     .map(room => {
@@ -170,7 +181,7 @@ const Sidebar = () => {
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    // Ordino per data ultimo messaggio decrescente (più recente sopra)
+    // Ordino per data ultimo messaggio decrescente
     .sort((a, b) => {
       const aDate = new Date(a.room.lastMessageTimestamp || 0);
       const bDate = new Date(b.room.lastMessageTimestamp || 0);
@@ -229,4 +240,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
