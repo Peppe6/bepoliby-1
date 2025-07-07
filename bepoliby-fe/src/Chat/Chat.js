@@ -37,7 +37,6 @@ function Chat() {
     }
   }, [token]);
 
-  // ✅ Pusher globale (rooms)
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
@@ -45,15 +44,30 @@ function Chat() {
     const channel = pusher.subscribe("rooms");
 
     channel.bind("new-message", (data) => {
-      const { room, message } = data;
-      if (room?._id !== roomId) return;
+      if (!data || !data.room || !data.message) return;
+      if (data.room._id !== roomId) return;
+
+      const newMsg = data.message;
 
       setRoomMessages(prev => {
-        if (prev.some(m => m._id === message._id)) return prev;
-        return [...prev, message];
+        const tempIndex = prev.findIndex(m =>
+          m._id?.startsWith('temp-') &&
+          m.message === newMsg.message &&
+          m.uid === newMsg.uid
+        );
+
+        if (tempIndex !== -1) {
+          const copy = [...prev];
+          copy[tempIndex] = newMsg;
+          return copy;
+        }
+
+        if (prev.some(m => m._id === newMsg._id)) return prev;
+
+        return [...prev, newMsg];
       });
 
-      setLastSeen(message.timestamp);
+      setLastSeen(newMsg.timestamp);
     });
 
     return () => {
@@ -63,7 +77,6 @@ function Chat() {
     };
   }, [roomId, user?.uid]);
 
-  // 📥 Caricamento iniziale messaggi della stanza
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
