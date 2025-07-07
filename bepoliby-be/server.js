@@ -197,11 +197,13 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
 
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
-    const room = await Rooms.findById(req.params.roomId);
+    const room = await Rooms.findById(req.params.roomId)
+      .populate('members', 'nome username');  // POPOLA I MEMBRI PER MOSTRARE I NOMI
+
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
     // Controllo se l'utente è membro della stanza
-    const isMember = room.members.some(memberId => memberId.toString() === req.user.uid.toString());
+    const isMember = room.members.some(memberId => memberId._id.toString() === req.user.uid.toString());
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     res.status(200).json(room);
@@ -224,14 +226,20 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
       .map(id => new mongoose.Types.ObjectId(id))
       .sort((a, b) => a.toString().localeCompare(b.toString()));
 
-    // Cerca stanza esistente con gli stessi membri
-    const existingRoom = await Rooms.findOne({
+    // Cerca stanze che contengono gli stessi membri con $all e $size
+    const rooms = await Rooms.find({
       members: { $all: sortedMembers, $size: sortedMembers.length }
     });
 
-    if (existingRoom) {
-      // Se esiste già, ritorna quella stanza
-      return res.status(200).json(existingRoom);
+    // Controllo array esatto membri (per evitare falsi positivi)
+    const exactRoom = rooms.find(room => {
+      const roomMembersSorted = room.members.map(m => m.toString()).sort();
+      const sortedMembersStr = sortedMembers.map(m => m.toString());
+      return JSON.stringify(roomMembersSorted) === JSON.stringify(sortedMembersStr);
+    });
+
+    if (exactRoom) {
+      return res.status(200).json(exactRoom);
     }
 
     // Crea nuova stanza
@@ -276,27 +284,22 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     };
 
     room.messages.push(newMessage);
-    room.lastMessageTimestamp = new Date();
-
+    room.lastMessageTimestamp = newMessage.timestamp;
     await room.save();
-
-    // Ricarica stanza con membri popolati per invio eventi
-    const fullRoom = await Rooms.findById(roomId).populate('members', 'nome username');
-
-    // Rispondi subito al client
-    res.status(201).json(newMessage);
 
     // Trigger Pusher
     PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
+
+    res.status(201).json(newMessage);
   } catch (err) {
-    console.error("❌ Errore invio messaggio:", err);
-    res.status(500).json({ error: "Errore interno invio messaggio" });
+    console.error("❌ Errore inserimento messaggio:", err);
+    res.status(500).json({ error: "Errore interno nel salvataggio messaggio" });
   }
 });
 
-// === Avvio server ===
 app.listen(port, () => {
-  console.log(`🚀 Server avviato sulla porta ${port}`);
+  console.log(`🚀 Server attivo su porta ${port}`);
 });
+
 
 
