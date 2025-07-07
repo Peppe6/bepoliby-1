@@ -79,7 +79,8 @@ const Sidebar = () => {
       const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
 
       // Ignoro stanza se non contiene l'utente corrente
-      if (!membersIds.includes(user.uid)) return;
+      if (!membersIds.map(String).includes(String(user.uid))) return;
+
 
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
