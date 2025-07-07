@@ -1,5 +1,4 @@
 
-
 import React from "react";
 import './SidebarChat.css';
 import { Avatar } from "@mui/material";
@@ -11,11 +10,14 @@ const SidebarChat = ({ id, name, lastMessageText, avatarSrc, selected }) => {
     return text.length > maxLength ? text.substring(0, maxLength) + "..." : text;
   };
 
+  // Usa avatarSrc se presente, altrimenti genera avatar con nome
   const avatarUrl = avatarSrc || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}`;
 
   return (
     <Link to={`/rooms/${id}`} className={`sidebarChat ${selected ? 'sidebarChat_selected' : ''}`}>
-      <Avatar src={avatarUrl} alt={name} />
+      <Avatar src={avatarUrl} alt={name}>
+        {!avatarSrc && name?.[0]?.toUpperCase()}
+      </Avatar>
       <div className="sidebarChat_info">
         <h2>{name}</h2>
         <p>{truncateMessage(lastMessageText)}</p>
@@ -25,5 +27,4 @@ const SidebarChat = ({ id, name, lastMessageText, avatarSrc, selected }) => {
 };
 
 export default SidebarChat;
-
 
