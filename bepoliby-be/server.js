@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -84,7 +85,7 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// 🔍 Endpoint ricerca utenti (aggiunto)
+// 🔍 Endpoint ricerca utenti
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
   const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -233,11 +234,19 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       lastMessageTimestamp: newMessage.timestamp,
     };
 
+    // LOG: prima di trigger Pusher
+    console.log("📤 Inviando messaggio via Pusher:");
+    console.log("roomId:", roomId);
+    console.log("message:", newMessage);
+    console.log("simplifiedRoom:", simplifiedRoom);
+
     await PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
     await PusherClient.trigger("rooms", "new-message", {
       room: simplifiedRoom,
       message: newMessage,
     });
+
+    console.log("✅ Evento Pusher inviato con successo");
 
     res.status(201).json(newMessage);
   } catch (err) {
