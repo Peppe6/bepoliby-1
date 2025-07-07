@@ -1,3 +1,8 @@
+
+
+
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -15,10 +20,10 @@ function Chat() {
   const [lastSeen, setLastSeen] = useState("");
   const [roomMessages, setRoomMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [{ user, token }] = useStateValue();
-  const messagesEndRef = useRef(null);
   const [sending, setSending] = useState(false);
   const inputRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const [{ user, token }] = useStateValue();
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
@@ -40,60 +45,58 @@ function Chat() {
     }
   }, [token]);
 
+  // 🔁 Realtime listener con Pusher
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
-const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
-const channel = pusher.subscribe(`room_${roomId}`);
+    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
+    const channel = pusher.subscribe(`room_${roomId}`);
 
-channel.bind("inserted", (data) => {
-  if (!data || !data.message) return;
+    const handleNewMessage = (data) => {
+      if (!data || !data.message) return;
 
-  const newMsg = data.message;
+      const newMsg = data.message;
 
-  setRoomMessages(prev => {
-    const tempIndex = prev.findIndex(m =>
-      m._id?.startsWith('temp-') &&
-      m.message === newMsg.message &&
-      m.uid === newMsg.uid
-    );
+      setRoomMessages(prev => {
+        const tempIndex = prev.findIndex(m =>
+          m._id?.startsWith('temp-') &&
+          m.message === newMsg.message &&
+          m.uid === newMsg.uid
+        );
 
-    if (tempIndex !== -1) {
-      const copy = [...prev];
-      copy[tempIndex] = newMsg;
-      return copy;
-    }
+        if (tempIndex !== -1) {
+          const copy = [...prev];
+          copy[tempIndex] = newMsg;
+          return copy;
+        }
 
-    if (prev.some(m => m._id === newMsg._id)) return prev;
+        if (prev.some(m => m._id === newMsg._id)) return prev;
 
-    return [...prev, newMsg];
-  });
-
-  setLastSeen(newMsg.timestamp);
-});
-
+        return [...prev, newMsg];
+      });
 
       setLastSeen(newMsg.timestamp);
     };
 
-    channel.bind("new-message", newMessageHandler);
+    channel.bind("inserted", handleNewMessage);
 
     return () => {
-      channel.unbind("new-message", newMessageHandler);
+      channel.unbind("inserted", handleNewMessage);
       channel.unsubscribe();
       pusher.disconnect();
     };
   }, [roomId, user?.uid]);
 
+  // 📥 Caricamento messaggi iniziali
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
 
       try {
-        const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
-        setRoomName(roomRes.data.name || "Chat");
+        const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
+        setRoomName(res.data.name || "Chat");
 
-        const messages = roomRes.data.messages || [];
+        const messages = res.data.messages || [];
         setRoomMessages(messages);
 
         const lastMsg = messages.at(-1);
@@ -241,7 +244,3 @@ channel.bind("inserted", (data) => {
 }
 
 export default Chat;
-
-
-
-
