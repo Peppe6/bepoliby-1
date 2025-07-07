@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -84,11 +83,32 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// Lista utenti base
+// Endpoint per fornire immagine profilo come file binario
+app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
+  try {
+    const utente = await Utente.findById(req.params.id).select("profilePic");
+    if (!utente || !utente.profilePic || !utente.profilePic.data) {
+      return res.status(404).send("Immagine profilo non trovata");
+    }
+    res.set("Content-Type", utente.profilePic.contentType);
+    res.send(utente.profilePic.data);
+  } catch (err) {
+    console.error("Errore recupero immagine profilo:", err);
+    res.status(500).send("Errore server");
+  }
+});
+
+// Lista utenti base con URL immagine profilo
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const users = await Utente.find({}, { _id: 1, nome: 1, username: 1 });
-    res.status(200).json(users);
+    const usersWithPicUrl = users.map(u => ({
+      _id: u._id,
+      nome: u.nome,
+      username: u.username,
+      profilePicUrl: `/api/v1/users/${u._id}/profile-pic`
+    }));
+    res.status(200).json(usersWithPicUrl);
   } catch (err) {
     console.error("Errore recupero utenti:", err);
     res.status(500).json({ error: "Errore nel recupero utenti" });
@@ -113,17 +133,26 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
     const results = await Utente.find(filter)
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("_id nome username profilePicUrl")
+      .select("_id nome username")
       .exec();
 
-    res.json({ results, total });
+    // aggiungo URL immagine profilo
+    const resultsWithPicUrl = results.map(u => ({
+      _id: u._id,
+      nome: u.nome,
+      username: u.username,
+      profilePicUrl: `/api/v1/users/${u._id}/profile-pic`
+    }));
+
+    res.json({ results: resultsWithPicUrl, total });
   } catch (err) {
     console.error("Errore ricerca utenti:", err);
     res.status(500).json({ error: "Errore interno server" });
   }
 });
 
-// Recupero stanze
+// (Resto delle API invariato...)
+
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const rooms = await Rooms.find({ members: req.user.uid })
@@ -137,7 +166,6 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// Dettagli stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId).populate(
@@ -159,7 +187,6 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// Creazione stanza
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -201,7 +228,6 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// Invio messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
