@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
 
@@ -6,9 +7,62 @@ const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.o
 const LIMIT = 10;
 
 export default function UserSearch({ currentUserId, onSelect }) {
-  // ...stessa logica fetch e stato...
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // solo la parte render:
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!query) {
+        setResults([]);
+        setHasMore(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(query)}&page=${page}&limit=${LIMIT}`, {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem("token")}`
+          }
+        });
+
+        const data = await res.json();
+        if (page === 1) {
+          setResults(data.results.filter(u => u._id !== currentUserId));
+        } else {
+          setResults(prev => [...prev, ...data.results.filter(u => u._id !== currentUserId)]);
+        }
+
+        setHasMore(data.results.length === LIMIT);
+      } catch (err) {
+        console.error("Errore ricerca utenti:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [query, page, currentUserId]);
+
+  const handleInput = (e) => {
+    setQuery(e.target.value);
+    setPage(1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setPage(1);
+    }
+  };
+
+  const loadMore = () => {
+    setPage(prev => prev + 1);
+  };
+
   return (
     <div className="user-search">
       <input
