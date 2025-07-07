@@ -43,34 +43,35 @@ function Chat() {
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
-    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
-    const channel = pusher.subscribe("rooms");
+const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
+const channel = pusher.subscribe(`room_${roomId}`);
 
-    const newMessageHandler = (data) => {
-      if (!data || !data.room || !data.message) return;
-      if (data.room._id !== roomId) return;
+channel.bind("inserted", (data) => {
+  if (!data || !data.message) return;
 
-      const newMsg = data.message;
+  const newMsg = data.message;
 
-      setRoomMessages(prev => {
-        // Sostituisci messaggio temporaneo con quello definitivo
-        const tempIndex = prev.findIndex(m =>
-          m._id?.startsWith('temp-') &&
-          m.message === newMsg.message &&
-          m.uid === newMsg.uid
-        );
+  setRoomMessages(prev => {
+    const tempIndex = prev.findIndex(m =>
+      m._id?.startsWith('temp-') &&
+      m.message === newMsg.message &&
+      m.uid === newMsg.uid
+    );
 
-        if (tempIndex !== -1) {
-          const copy = [...prev];
-          copy[tempIndex] = newMsg;
-          return copy;
-        }
+    if (tempIndex !== -1) {
+      const copy = [...prev];
+      copy[tempIndex] = newMsg;
+      return copy;
+    }
 
-        // Se già presente, evita duplicati
-        if (prev.some(m => m._id === newMsg._id)) return prev;
+    if (prev.some(m => m._id === newMsg._id)) return prev;
 
-        return [...prev, newMsg];
-      });
+    return [...prev, newMsg];
+  });
+
+  setLastSeen(newMsg.timestamp);
+});
+
 
       setLastSeen(newMsg.timestamp);
     };
