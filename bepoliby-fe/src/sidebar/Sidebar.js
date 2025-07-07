@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -13,6 +14,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
+const PROFILE_PIC_BASE_URL = `${API_BASE_URL}/api/v1/users`;
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
 const PUSHER_CLUSTER = "eu";
 
@@ -25,6 +27,7 @@ const Sidebar = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
+  // Aggiorna axios default header Authorization se cambia token
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -36,19 +39,26 @@ const Sidebar = () => {
   useEffect(() => {
     if (!user?.uid) return;
 
+    let pusher;
+    let channel;
+
     const fetchData = async () => {
       try {
         setLoading(true);
+        const [roomsRes, usersRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/api/v1/rooms`),
+          axios.get(`${API_BASE_URL}/api/v1/users`),
+        ]);
 
-        const roomsRes = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
         setRooms(roomsRes.data);
 
-        const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
           usersMap[u._id] = {
             name: u.nome || u.username || "Sconosciuto",
-            profilePicUrl: u.profilePicUrl || null,
+            profilePicUrl: u.profilePicUrl
+              ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`
+              : null,
           };
         });
         setAllUsers(usersMap);
@@ -61,7 +71,7 @@ const Sidebar = () => {
 
     fetchData();
 
-    const pusher = new Pusher(PUSHER_KEY, {
+    pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
       authEndpoint: `${API_BASE_URL}/pusher/auth`,
       auth: {
@@ -71,7 +81,7 @@ const Sidebar = () => {
       }
     });
 
-    const channel = pusher.subscribe('rooms');
+    channel = pusher.subscribe('rooms');
 
     channel.bind('new-message', (data) => {
       if (!data || !data.room || !data.message) return;
@@ -102,11 +112,11 @@ const Sidebar = () => {
     });
 
     return () => {
-      if (pusher.connection.state === "connected") {
+      if (pusher?.connection?.state === "connected") {
         channel.unbind_all();
-        channel.unsubscribe();
+        pusher.unsubscribe('rooms');
         pusher.disconnect();
-      } else {
+      } else if (channel) {
         channel.unbind_all();
       }
     };
@@ -119,19 +129,13 @@ const Sidebar = () => {
     }
 
     try {
+      // Ordina i membri per evitare stanze duplicate
       const membri = [user.uid, selectedUser._id].sort((a, b) => a.localeCompare(b));
       const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
-      const config = {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      };
-
       const res = await axios.post(
         `${API_BASE_URL}/api/v1/rooms`,
-        { name: roomName, members: membri },
-        config
+        { name: roomName, members: membri }
       );
 
       const newRoomId = res.data?._id || res.data?.roomId;
@@ -198,6 +202,7 @@ const Sidebar = () => {
             placeholder="Cerca chat"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Cerca chat"
           />
         </div>
       </div>
