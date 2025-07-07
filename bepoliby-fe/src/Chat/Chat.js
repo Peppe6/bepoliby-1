@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; 
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
 import { Avatar, IconButton } from '@mui/material';
@@ -23,6 +23,10 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
+  // Ref per l'istanza Pusher e il canale attivo
+  const pusherRef = useRef(null);
+  const channelRef = useRef(null);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,14 +47,35 @@ function Chat() {
     }
   }, [token]);
 
-  // Realtime listener con Pusher
+  // Setup Pusher una volta
   useEffect(() => {
-    if (!roomId || !user?.uid) return;
+    if (!pusherRef.current) {
+      pusherRef.current = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
+    }
+    // Pulizia alla unmount del componente (eventuale)
+    return () => {
+      if (pusherRef.current) {
+        pusherRef.current.disconnect();
+        pusherRef.current = null;
+      }
+    };
+  }, []);
+
+  // Gestione canale Pusher per la stanza attuale
+  useEffect(() => {
+    if (!roomId || !user?.uid || !pusherRef.current) return;
+
+    // Se c'è un canale attivo, lo puliamo e disiscriviamo
+    if (channelRef.current) {
+      channelRef.current.unbind_all();
+      pusherRef.current.unsubscribe(channelRef.current.name);
+      channelRef.current = null;
+    }
 
     console.log("👂 Mi iscrivo al canale:", `room_${roomId}`);
 
-    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
-    const channel = pusher.subscribe(`room_${roomId}`);
+    // Subscribe al nuovo canale stanza
+    channelRef.current = pusherRef.current.subscribe(`room_${roomId}`);
 
     const handleNewMessage = (data) => {
       console.log("🔔 Messaggio ricevuto da Pusher:", data);
@@ -59,13 +84,7 @@ function Chat() {
       const newMsg = data.message;
 
       setRoomMessages(prev => {
-        const alreadyExists = prev.some(m =>
-          m.uid === newMsg.uid &&
-          m.message === newMsg.message &&
-          new Date(m.timestamp).getTime() === new Date(newMsg.timestamp).getTime()
-        );
-
-        if (alreadyExists) return prev;
+        if (prev.some(m => m._id === newMsg._id)) return prev;
 
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
@@ -85,17 +104,20 @@ function Chat() {
       setLastSeen(newMsg.timestamp);
     };
 
-    channel.bind("inserted", handleNewMessage);
+    channelRef.current.bind("inserted", handleNewMessage);
 
+    // Cleanup su cambio stanza o dismount
     return () => {
-      console.log("🚪 Mi disiscrivo da:", `room_${roomId}`);
-      channel.unbind("inserted", handleNewMessage);
-      channel.unsubscribe();
-      pusher.disconnect();
+      if (channelRef.current) {
+        console.log("🚪 Mi disiscrivo da:", `room_${roomId}`);
+        channelRef.current.unbind("inserted", handleNewMessage);
+        pusherRef.current.unsubscribe(channelRef.current.name);
+        channelRef.current = null;
+      }
     };
   }, [roomId, user?.uid]);
 
-  // Carica dati della stanza e messaggi
+  // Carica dati stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -142,6 +164,7 @@ function Chat() {
 
     try {
       await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
+      // Pusher gestisce l'arrivo del messaggio definitivo
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
