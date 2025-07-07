@@ -1,14 +1,14 @@
-import express from "express";
-import cors from "cors";
-import mongoose from "mongoose";
-import Pusher from "pusher";
-import helmet from "helmet";
-import dotenv from "dotenv";
-import User from "./models/User.js";
-import Room from "./models/Room.js";
-import verifyToken from "./middleware/verifyToken.js";
+require('dotenv').config();
 
-dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const mongoose = require('mongoose');
+const Pusher = require('pusher');
+const helmet = require('helmet');
+
+const User = require('./models/User.js');
+const Room = require('./models/Room.js');
+const verifyToken = require('./middleware/verifyToken.js');
 
 const app = express();
 
