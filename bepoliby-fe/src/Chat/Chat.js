@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -23,8 +22,11 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
+  // Scrolla in fondo con piccolo debounce per sicurezza
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
 
   const onEmojiClick = (emojiData) => {
@@ -41,7 +43,7 @@ function Chat() {
     }
   }, [token]);
 
-  // 🔁 Realtime listener con Pusher
+  // Listener realtime Pusher per nuovi messaggi
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
@@ -50,10 +52,13 @@ function Chat() {
 
     const handleNewMessage = (data) => {
       if (!data || !data.message) return;
-
       const newMsg = data.message;
 
       setRoomMessages(prev => {
+        // Verifica se il messaggio è già presente (per id o per tempId + contenuto)
+        if (prev.some(m => m._id === newMsg._id)) return prev;
+
+        // Se esiste un messaggio temporaneo identico, sostituiscilo con quello definitivo
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -65,8 +70,6 @@ function Chat() {
           copy[tempIndex] = newMsg;
           return copy;
         }
-
-        if (prev.some(m => m._id === newMsg._id)) return prev;
 
         return [...prev, newMsg];
       });
@@ -83,7 +86,7 @@ function Chat() {
     };
   }, [roomId, user?.uid]);
 
-  // 📥 Caricamento messaggi iniziali
+  // Caricamento iniziale messaggi e dati stanza
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -107,6 +110,7 @@ function Chat() {
     fetchRoomData();
   }, [roomId, user?.uid, apiUrl]);
 
+  // Scrolla in fondo ad ogni aggiornamento messaggi
   useEffect(() => {
     scrollToBottom();
   }, [roomMessages]);
@@ -130,6 +134,7 @@ function Chat() {
 
     try {
       await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
+      // Il messaggio definitivo arriverà da Pusher e sostituirà il temp
     } catch (error) {
       console.error("Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
