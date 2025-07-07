@@ -14,7 +14,6 @@ const Utente = require('./model/dbUser');
 const app = express();
 const port = process.env.PORT || 9000;
 
-// === Middleware ===
 app.use(express.json());
 
 const allowedOrigins = [
@@ -43,8 +42,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       connectSrc: [
         "'self'",
-        "https://bepoliby-1.onrender.com",
-        "https://bepoliby-1-2.onrender.com",
+        ...allowedOrigins,
         "https://*.pusher.com",
         "wss://*.pusher.com"
       ],
@@ -77,28 +75,12 @@ const PusherClient = new Pusher({
   useTLS: true,
 });
 
-const db = mongoose.connection;
-db.once("open", () => {
-  const roomCollection = db.collection("rooms");
-  const changeStream = roomCollection.watch();
-
-  changeStream.on("change", async (change) => {
-    if (change.operationType === "update") {
-      const updatedFields = change.updateDescription.updatedFields;
-      if (Object.keys(updatedFields).some(key => key.startsWith("messages"))) {
-        const roomId = change.documentKey._id.toString();
-        const room = await Rooms.findById(roomId);
-        const lastMessage = room.messages.at(-1);
-        if (lastMessage) {
-          PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: lastMessage });
-        }
-      }
-    }
-  });
-
-  changeStream.on("error", (err) => {
-    console.error("❌ ChangeStream error:", err);
-  });
+// === PUSHER AUTH ENDPOINT (per canali privati)
+app.post("/pusher/auth", verifyToken, (req, res) => {
+  const socketId = req.body.socket_id;
+  const channel = req.body.channel_name;
+  const auth = PusherClient.authenticate(socketId, channel, {});
+  res.send(auth);
 });
 
 // === ROUTES ===
@@ -108,7 +90,7 @@ app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 app.get('/api/user-photo/:userId', async (req, res) => {
   try {
     const user = await Utente.findById(req.params.userId);
-    if (!user || !user.profilePic || !user.profilePic.data) {
+    if (!user || !user.profilePic?.data) {
       return res.status(404).send('No image');
     }
     res.set('Content-Type', user.profilePic.contentType);
@@ -135,27 +117,20 @@ app.get("/api/auth-token", (req, res) => {
 
 app.get("/api/v1/users/search", async (req, res) => {
   const query = req.query.q;
-  let page = parseInt(req.query.page) || 1;
-  let limit = parseInt(req.query.limit) || 10;
+  const page = Math.max(parseInt(req.query.page) || 1, 1);
+  const limit = Math.max(parseInt(req.query.limit) || 10, 1);
+  const skip = (page - 1) * limit;
 
   if (!query) return res.status(400).json({ message: "Query mancante" });
-  if (page < 1) page = 1;
-  if (limit < 1) limit = 10;
-
-  const skip = (page - 1) * limit;
 
   try {
     const regex = new RegExp(query, 'i');
-    const total = await Utente.countDocuments({
-      $or: [{ username: regex }, { nome: regex }]
-    });
+    const total = await Utente.countDocuments({ $or: [{ username: regex }, { nome: regex }] });
 
     const results = await Utente.find(
       { $or: [{ username: regex }, { nome: regex }] },
       'username nome _id'
-    )
-      .skip(skip)
-      .limit(limit);
+    ).skip(skip).limit(limit);
 
     res.json({
       page,
@@ -198,12 +173,10 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId)
-      .populate('members', 'nome username');  // POPOLA I MEMBRI PER MOSTRARE I NOMI
-
+      .populate('members', 'nome username');
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    // Controllo se l'utente è membro della stanza
-    const isMember = room.members.some(memberId => memberId._id.toString() === req.user.uid.toString());
+    const isMember = room.members.some(member => member._id.toString() === req.user.uid);
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     res.status(200).json(room);
@@ -212,37 +185,28 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// POST stanza: crea nuova stanza solo se non esiste già tra membri (evita duplicati)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
-
   if (!Array.isArray(members) || members.length < 2) {
     return res.status(400).json({ message: "La stanza deve avere almeno due membri" });
   }
 
   try {
-    // Normalizza e ordina gli id membri per evitare duplicati con ordine diverso
     const sortedMembers = members
       .map(id => new mongoose.Types.ObjectId(id))
       .sort((a, b) => a.toString().localeCompare(b.toString()));
 
-    // Cerca stanze che contengono gli stessi membri con $all e $size
     const rooms = await Rooms.find({
       members: { $all: sortedMembers, $size: sortedMembers.length }
     });
 
-    // Controllo array esatto membri (per evitare falsi positivi)
     const exactRoom = rooms.find(room => {
       const roomMembersSorted = room.members.map(m => m.toString()).sort();
-      const sortedMembersStr = sortedMembers.map(m => m.toString());
-      return JSON.stringify(roomMembersSorted) === JSON.stringify(sortedMembersStr);
+      return JSON.stringify(roomMembersSorted) === JSON.stringify(sortedMembers.map(m => m.toString()));
     });
 
-    if (exactRoom) {
-      return res.status(200).json(exactRoom);
-    }
+    if (exactRoom) return res.status(200).json(exactRoom);
 
-    // Crea nuova stanza
     const newRoom = new Rooms({
       name: name || null,
       members: sortedMembers,
@@ -252,7 +216,6 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
 
     await newRoom.save();
     res.status(201).json(newRoom);
-
   } catch (err) {
     console.error("❌ Errore creazione stanza:", err);
     res.status(500).json({ message: "Errore interno nella creazione stanza" });
@@ -266,15 +229,11 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   if (!message) return res.status(400).json({ error: "Messaggio mancante" });
 
   try {
-    const room = await Rooms.findById(roomId);
+    const room = await Rooms.findById(roomId).populate('members', 'nome username');
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    const isMember = room.members.some(
-      memberId => memberId.toString() === req.user.uid.toString()
-    );
-    if (!isMember) {
-      return res.status(403).json({ error: "Accesso negato" });
-    }
+    const isMember = room.members.some(member => member._id.toString() === req.user.uid);
+    if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     const newMessage = {
       message,
@@ -287,8 +246,8 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     room.lastMessageTimestamp = newMessage.timestamp;
     await room.save();
 
-    // Trigger Pusher
-    PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
+    await PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
+    await PusherClient.trigger("rooms", "new-message", { room, message: newMessage });
 
     res.status(201).json(newMessage);
   } catch (err) {
@@ -300,6 +259,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Server attivo su porta ${port}`);
 });
+
 
 
 
