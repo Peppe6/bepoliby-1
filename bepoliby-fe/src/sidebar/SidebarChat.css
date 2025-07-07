@@ -54,3 +54,9 @@
   border-left: 4px solid #00bfa5;
 }
 
+.sidebarChat > .MuiAvatar-root {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
