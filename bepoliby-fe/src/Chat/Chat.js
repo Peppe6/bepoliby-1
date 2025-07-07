@@ -37,33 +37,23 @@ function Chat() {
     }
   }, [token]);
 
-  // 🔴 Canale dedicato alla stanza attuale
+  // ✅ Pusher globale (rooms)
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
-    const channel = pusher.subscribe(`room_${roomId}`);
+    const channel = pusher.subscribe("rooms");
 
-    channel.bind('inserted', (payload) => {
-      const newMsg = payload.message;
+    channel.bind("new-message", (data) => {
+      const { room, message } = data;
+      if (room?._id !== roomId) return;
 
-      setRoomMessages(prevMessages => {
-        const tempIndex = prevMessages.findIndex(m =>
-          m._id?.startsWith('temp-') &&
-          m.message === newMsg.message &&
-          m.uid === newMsg.uid
-        );
-        if (tempIndex !== -1) {
-          const copy = [...prevMessages];
-          copy[tempIndex] = newMsg;
-          return copy;
-        }
-
-        if (prevMessages.some(m => m._id === newMsg._id)) return prevMessages;
-        return [...prevMessages, newMsg];
+      setRoomMessages(prev => {
+        if (prev.some(m => m._id === message._id)) return prev;
+        return [...prev, message];
       });
 
-      setLastSeen(newMsg.timestamp);
+      setLastSeen(message.timestamp);
     });
 
     return () => {
@@ -73,31 +63,7 @@ function Chat() {
     };
   }, [roomId, user?.uid]);
 
-  // ✅ Canale globale: riceve messaggi anche se non sei nella stanza attiva
-  useEffect(() => {
-    if (!user?.uid) return;
-
-    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
-    const globalChannel = pusher.subscribe("rooms");
-
-    globalChannel.bind("new-message", (data) => {
-      if (data.room._id !== roomId) return;
-      const msg = data.message;
-
-      setRoomMessages(prev => {
-        if (prev.some(m => m._id === msg._id)) return prev;
-        return [...prev, msg];
-      });
-      setLastSeen(msg.timestamp);
-    });
-
-    return () => {
-      globalChannel.unbind_all();
-      globalChannel.unsubscribe();
-      pusher.disconnect();
-    };
-  }, [roomId, user?.uid]);
-
+  // 📥 Caricamento iniziale messaggi della stanza
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -247,5 +213,6 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
