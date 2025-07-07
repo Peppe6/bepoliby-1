@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -58,7 +59,13 @@ function Chat() {
       const newMsg = data.message;
 
       setRoomMessages(prev => {
-        if (prev.some(m => m._id === newMsg._id)) return prev;
+        const alreadyExists = prev.some(m =>
+          m.uid === newMsg.uid &&
+          m.message === newMsg.message &&
+          new Date(m.timestamp).getTime() === new Date(newMsg.timestamp).getTime()
+        );
+
+        if (alreadyExists) return prev;
 
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
@@ -135,7 +142,6 @@ function Chat() {
 
     try {
       await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
-      // Pusher gestisce l'arrivo del messaggio definitivo
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
