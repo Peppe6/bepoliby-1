@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
