@@ -22,7 +22,6 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
-  // Scrolla in fondo con piccolo debounce per sicurezza
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,22 +42,24 @@ function Chat() {
     }
   }, [token]);
 
-  // Listener realtime Pusher per nuovi messaggi
+  // Realtime listener con Pusher
   useEffect(() => {
     if (!roomId || !user?.uid) return;
+
+    console.log("👂 Mi iscrivo al canale:", `room_${roomId}`);
 
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe(`room_${roomId}`);
 
     const handleNewMessage = (data) => {
+      console.log("🔔 Messaggio ricevuto da Pusher:", data);
       if (!data || !data.message) return;
+
       const newMsg = data.message;
 
       setRoomMessages(prev => {
-        // Verifica se il messaggio è già presente (per id o per tempId + contenuto)
         if (prev.some(m => m._id === newMsg._id)) return prev;
 
-        // Se esiste un messaggio temporaneo identico, sostituiscilo con quello definitivo
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -80,13 +81,14 @@ function Chat() {
     channel.bind("inserted", handleNewMessage);
 
     return () => {
+      console.log("🚪 Mi disiscrivo da:", `room_${roomId}`);
       channel.unbind("inserted", handleNewMessage);
       channel.unsubscribe();
       pusher.disconnect();
     };
   }, [roomId, user?.uid]);
 
-  // Caricamento iniziale messaggi e dati stanza
+  // Carica dati della stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -101,7 +103,7 @@ function Chat() {
         const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
-        console.error("Errore caricamento chat:", err);
+        console.error("❌ Errore caricamento chat:", err);
         setRoomName("⚠️ Stanza non trovata o accesso negato");
         setRoomMessages([]);
       }
@@ -110,7 +112,6 @@ function Chat() {
     fetchRoomData();
   }, [roomId, user?.uid, apiUrl]);
 
-  // Scrolla in fondo ad ogni aggiornamento messaggi
   useEffect(() => {
     scrollToBottom();
   }, [roomMessages]);
@@ -134,9 +135,9 @@ function Chat() {
 
     try {
       await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
-      // Il messaggio definitivo arriverà da Pusher e sostituirà il temp
+      // Pusher gestisce l'arrivo del messaggio definitivo
     } catch (error) {
-      console.error("Errore nell'invio del messaggio:", error);
+      console.error("❌ Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
       alert("Errore nell'invio del messaggio, riprova.");
     } finally {
@@ -245,3 +246,4 @@ function Chat() {
 }
 
 export default Chat;
+
