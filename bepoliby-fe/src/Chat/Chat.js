@@ -37,6 +37,7 @@ function Chat() {
     }
   }, [token]);
 
+  // 🔴 Canale dedicato alla stanza attuale
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
@@ -72,13 +73,38 @@ function Chat() {
     };
   }, [roomId, user?.uid]);
 
+  // ✅ Canale globale: riceve messaggi anche se non sei nella stanza attiva
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
+    const globalChannel = pusher.subscribe("rooms");
+
+    globalChannel.bind("new-message", (data) => {
+      if (data.room._id !== roomId) return;
+      const msg = data.message;
+
+      setRoomMessages(prev => {
+        if (prev.some(m => m._id === msg._id)) return prev;
+        return [...prev, msg];
+      });
+      setLastSeen(msg.timestamp);
+    });
+
+    return () => {
+      globalChannel.unbind_all();
+      globalChannel.unsubscribe();
+      pusher.disconnect();
+    };
+  }, [roomId, user?.uid]);
+
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
 
       try {
         const roomRes = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
-        setRoomName(roomRes.data.name);
+        setRoomName(roomRes.data.name || "Chat");
 
         const messages = roomRes.data.messages || [];
         setRoomMessages(messages);
@@ -142,10 +168,6 @@ function Chat() {
       <div className='Chat_header'>
         <Avatar
           src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roomName)}&background=random&color=fff&size=128`}
-          onError={(e) => {
-            e.currentTarget.onerror = null;
-            e.currentTarget.src = "/default-avatar.png";
-          }}
         />
         <div className='Chat_header_info'>
           <h3>{roomName}</h3>
@@ -178,10 +200,6 @@ function Chat() {
                 <Avatar
                   className="Chat_avatar"
                   src={`https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = "/default-avatar.png";
-                  }}
                 />
               )}
               <span className="Chat_name">{message.name}</span>
@@ -229,4 +247,5 @@ function Chat() {
 }
 
 export default Chat;
+
 
