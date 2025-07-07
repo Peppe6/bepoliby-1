@@ -1,3 +1,8 @@
+
+
+
+
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -83,19 +88,49 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-app.get("/api/v1/users", async (req, res) => {
+// Lista utenti base (senza ricerca)
+app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const users = await Utente.find({}, { _id: 1, nome: 1, username: 1 });
     res.status(200).json(users);
   } catch (err) {
+    console.error("Errore recupero utenti:", err);
     res.status(500).json({ error: "Errore nel recupero utenti" });
+  }
+});
+
+// Nuova rotta per ricerca utenti con query e paginazione
+app.get("/api/v1/users/search", verifyToken, async (req, res) => {
+  try {
+    const q = req.query.q || "";
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const regex = new RegExp(q, "i");
+
+    const filter = {
+      $or: [{ nome: regex }, { username: regex }],
+    };
+
+    const total = await Utente.countDocuments(filter);
+
+    const results = await Utente.find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .select("_id nome username profilePicUrl")
+      .exec();
+
+    res.json({ results, total });
+  } catch (err) {
+    console.error("Errore ricerca utenti:", err);
+    res.status(500).json({ error: "Errore interno server" });
   }
 });
 
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const rooms = await Rooms.find({ members: req.user.uid })
-      .populate('members', 'nome username')
+      .populate("members", "nome username")
       .sort({ lastMessageTimestamp: -1 });
 
     res.status(200).json(rooms);
@@ -107,16 +142,22 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
 
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
-    const room = await Rooms.findById(req.params.roomId)
-      .populate('members', 'nome username');
+    const room = await Rooms.findById(req.params.roomId).populate(
+      "members",
+      "nome username"
+    );
 
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    const isMember = room.members.some(member => member._id.toString() === req.user.uid);
+    // Usa toString per confrontare ObjectId
+    const isMember = room.members.some(
+      (member) => member._id.toString() === req.user.uid
+    );
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     res.status(200).json(room);
   } catch (err) {
+    console.error("Errore recupero stanza:", err);
     res.status(500).json({ error: "Errore nel recupero stanza" });
   }
 });
@@ -125,21 +166,30 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
   if (!Array.isArray(members) || members.length < 2) {
-    return res.status(400).json({ message: "La stanza deve avere almeno due membri" });
+    return res
+      .status(400)
+      .json({ message: "La stanza deve avere almeno due membri" });
   }
 
   try {
+    // Converti ObjectId e ordina
     const sortedMembers = members
-      .map(id => new mongoose.Types.ObjectId(id))
+      .map((id) => new mongoose.Types.ObjectId(id))
       .sort((a, b) => a.toString().localeCompare(b.toString()));
 
+    // Cerca stanze con membri esatti
     const existingRooms = await Rooms.find({
-      members: { $all: sortedMembers, $size: sortedMembers.length }
+      members: { $all: sortedMembers, $size: sortedMembers.length },
     });
 
-    const exactRoom = existingRooms.find(room => {
-      const roomMembersSorted = room.members.map(m => m.toString()).sort();
-      return JSON.stringify(roomMembersSorted) === JSON.stringify(sortedMembers.map(m => m.toString()));
+    const exactRoom = existingRooms.find((room) => {
+      const roomMembersSorted = room.members
+        .map((m) => m.toString())
+        .sort();
+      return (
+        JSON.stringify(roomMembersSorted) ===
+        JSON.stringify(sortedMembers.map((m) => m.toString()))
+      );
     });
 
     if (exactRoom) return res.status(200).json(exactRoom);
@@ -148,7 +198,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
       name: name || null,
       members: sortedMembers,
       messages: [],
-      lastMessageTimestamp: new Date()
+      lastMessageTimestamp: new Date(),
     });
 
     await newRoom.save();
@@ -169,7 +219,9 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    const isMember = room.members.some(member => member.toString() === req.user.uid);
+    const isMember = room.members.some(
+      (member) => member.toString() === req.user.uid
+    );
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     const newMessage = {
@@ -183,13 +235,13 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     room.lastMessageTimestamp = newMessage.timestamp;
     await room.save();
 
-    // ✅ Popola membri prima di inviare su Pusher
-    await room.populate('members', 'nome username');
+    // Popola membri prima di inviare su Pusher
+    await room.populate("members", "nome username");
 
     const simplifiedRoom = {
       _id: room._id.toString(),
       name: room.name,
-      members: room.members.map(m => ({
+      members: room.members.map((m) => ({
         _id: m._id.toString(),
         nome: m.nome,
         username: m.username,
@@ -200,7 +252,10 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     console.log("🔁 Invio su Pusher: ", simplifiedRoom);
 
-    await PusherClient.trigger(`room_${roomId}`, "inserted", { roomId, message: newMessage });
+    await PusherClient.trigger(`room_${roomId}`, "inserted", {
+      roomId,
+      message: newMessage,
+    });
     await PusherClient.trigger("rooms", "new-message", {
       room: simplifiedRoom,
       message: newMessage,
@@ -216,10 +271,3 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Server attivo su porta ${port}`);
 });
-
-
-
-
-
-
-
