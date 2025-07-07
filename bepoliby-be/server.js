@@ -1,8 +1,4 @@
 
-
-
-
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -88,7 +84,7 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// Lista utenti base (senza ricerca)
+// Lista utenti base
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const users = await Utente.find({}, { _id: 1, nome: 1, username: 1 });
@@ -99,7 +95,7 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
-// Nuova rotta per ricerca utenti con query e paginazione
+// Ricerca utenti
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
     const q = req.query.q || "";
@@ -127,6 +123,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   }
 });
 
+// Recupero stanze
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const rooms = await Rooms.find({ members: req.user.uid })
@@ -140,6 +137,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// Dettagli stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId).populate(
@@ -149,7 +147,6 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
 
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    // Usa toString per confrontare ObjectId
     const isMember = room.members.some(
       (member) => member._id.toString() === req.user.uid
     );
@@ -162,30 +159,25 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
+// Creazione stanza
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
   if (!Array.isArray(members) || members.length < 2) {
-    return res
-      .status(400)
-      .json({ message: "La stanza deve avere almeno due membri" });
+    return res.status(400).json({ message: "La stanza deve avere almeno due membri" });
   }
 
   try {
-    // Converti ObjectId e ordina
     const sortedMembers = members
       .map((id) => new mongoose.Types.ObjectId(id))
       .sort((a, b) => a.toString().localeCompare(b.toString()));
 
-    // Cerca stanze con membri esatti
     const existingRooms = await Rooms.find({
       members: { $all: sortedMembers, $size: sortedMembers.length },
     });
 
     const exactRoom = existingRooms.find((room) => {
-      const roomMembersSorted = room.members
-        .map((m) => m.toString())
-        .sort();
+      const roomMembersSorted = room.members.map((m) => m.toString()).sort();
       return (
         JSON.stringify(roomMembersSorted) ===
         JSON.stringify(sortedMembers.map((m) => m.toString()))
@@ -209,6 +201,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// Invio messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
@@ -235,7 +228,6 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     room.lastMessageTimestamp = newMessage.timestamp;
     await room.save();
 
-    // Popola membri prima di inviare su Pusher
     await room.populate("members", "nome username");
 
     const simplifiedRoom = {
@@ -250,19 +242,19 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       lastMessageTimestamp: newMessage.timestamp,
     };
 
-    console.log("🔁 Invio su Pusher: ", simplifiedRoom);
+    console.log("📡 Trigger su Pusher per chat e sidebar");
 
-    // Trigger solo sul canale specifico della stanza
+    // Trigger per chat attiva
     await PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId,
       message: newMessage,
     });
 
-    // Se vuoi mantenere anche il trigger globale per aggiornare la lista stanze (opzionale)
-    // await PusherClient.trigger("rooms", "new-message", {
-    //   room: simplifiedRoom,
-    //   message: newMessage,
-    // });
+    // Trigger per sidebar
+    await PusherClient.trigger("rooms", "new-message", {
+      room: simplifiedRoom,
+      message: newMessage,
+    });
 
     res.status(201).json(newMessage);
   } catch (err) {
@@ -270,7 +262,6 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Errore interno nel salvataggio messaggio" });
   }
 });
-
 
 app.listen(port, () => {
   console.log(`🚀 Server attivo su porta ${port}`);
