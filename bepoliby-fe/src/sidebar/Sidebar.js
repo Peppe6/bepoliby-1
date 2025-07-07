@@ -83,8 +83,12 @@ const Sidebar = () => {
             lastMessageText: data.message.message,
             lastMessageTimestamp: data.message.timestamp || new Date().toISOString()
           };
-          return updatedRooms;
+          // Ordino per data messaggio più recente
+          return updatedRooms.sort((a, b) =>
+            new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)
+          );
         } else {
+          // Inserisco nuova stanza in cima
           return [
             {
               ...data.room,
@@ -115,7 +119,7 @@ const Sidebar = () => {
     }
 
     try {
-      // ✅ Ordina gli ID per evitare duplicati
+      // Ordina gli ID per evitare duplicati
       const membri = [user.uid, selectedUser._id].sort((a, b) => a.localeCompare(b));
       const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
@@ -148,20 +152,30 @@ const Sidebar = () => {
   if (loading) return <div className="sidebar_loading">Caricamento...</div>;
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
+  // Filtro e preparo le stanze per visualizzazione
   const filteredRooms = (rooms || [])
     .filter(room => room && room.members && Array.isArray(room.members))
     .map(room => {
-      const members = room.members.map(m => (typeof m === "string" ? m : m._id));
-      const otherUser = room.members.find(m => m._id?.toString() !== user.uid && m._id) || {};
-      const displayName = otherUser.nome || otherUser.username || room.name || "Chat";
-      const messages = room.messages || [];
-      const lastMessage = room.lastMessageText || (messages.length && messages.at(-1)?.message) || "";
+      // members possono essere stringhe (id) o oggetti popolati
+      const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
+      // Trovo l'altro utente (diverso da me)
+      const otherUserId = membersIds.find(id => id !== user.uid);
+      // Cerco nome utente da mappa
+      const displayName = allUsers[otherUserId] || room.name || "Chat";
+      // Ultimo messaggio
+      const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
       return { room, displayName, lastMessage };
     })
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    )
+    // Ordino per data ultimo messaggio decrescente (più recente sopra)
+    .sort((a, b) => {
+      const aDate = new Date(a.room.lastMessageTimestamp || 0);
+      const bDate = new Date(b.room.lastMessageTimestamp || 0);
+      return bDate - aDate;
+    });
 
   return (
     <div className="sidebar">
@@ -215,3 +229,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
