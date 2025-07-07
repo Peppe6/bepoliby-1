@@ -46,7 +46,11 @@ const Sidebar = () => {
         const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
         usersRes.data.forEach(u => {
-          usersMap[u._id] = u.nome || u.username || "Sconosciuto";
+         usersMap[u._id] = {
+  name: u.nome || u.username || "Sconosciuto",
+  profilePicUrl: u.profilePicUrl || null, // o il campo corretto
+};
+
         });
         setAllUsers(usersMap);
       } catch (err) {
