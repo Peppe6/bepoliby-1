@@ -1,228 +1,145 @@
+import React, { useState, useEffect, useRef } from "react";
+import "./Sidebar.css";
+import SidebarChat from "./SidebarChat";
+import { useStateValue } from "../StateProvider";
+import axios from "axios";
+import Pusher from "pusher-js";
 
-import React, { useEffect, useState } from "react";
-import './Sidebar.css';
-import ChatBubbleIcon from "@mui/icons-material/Chat";
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import FilterTiltShiftIcon from '@mui/icons-material/FilterTiltShift';
-import SearchIcon from '@mui/icons-material/Search';
-import { Avatar, IconButton } from "@mui/material";
-import SidebarChat from './SidebarChat';
-import axios from 'axios';
-import { useStateValue } from '../StateProvider';
-import UserSearch from './UserSearch';
-import { useParams, useNavigate } from "react-router-dom";
-import Pusher from 'pusher-js';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
-const PROFILE_PIC_BASE_URL = `${API_BASE_URL}/api/v1/users`;
-const PUSHER_KEY = "6a10fce7f61c4c88633b";
-const PUSHER_CLUSTER = "eu";
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:9000";
 
 const Sidebar = () => {
-  const [rooms, setRooms] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [{ user, token }] = useStateValue();
-  const [allUsers, setAllUsers] = useState({});
-  const [loading, setLoading] = useState(true);
-  const { roomId } = useParams();
-  const navigate = useNavigate();
+  const [rooms, setRooms] = useState([]);
+  const [allUsers, setAllUsers] = useState({}); // mappa utenti _id => {name, profilePicUrl}
+  const [selectedRoomId, setSelectedRoomId] = useState(null);
 
-  // Aggiorna axios default header Authorization se cambia token
+  const pusherRef = useRef(null);
+  const channelRef = useRef(null);
+
   useEffect(() => {
     if (token) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete axios.defaults.headers.common["Authorization"];
     }
   }, [token]);
 
+  // Carica stanze dell'utente
   useEffect(() => {
     if (!user?.uid) return;
 
-    let pusher;
-    let channel;
-
-    const fetchData = async () => {
+    const fetchRooms = async () => {
       try {
-        setLoading(true);
-        const [roomsRes, usersRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/v1/rooms`),
-          axios.get(`${API_BASE_URL}/api/v1/users`),
-        ]);
+        const res = await axios.get(`${API_BASE_URL}/api/v1/rooms`);
+        setRooms(res.data);
+      } catch (err) {
+        console.error("Errore caricamento stanze:", err);
+      }
+    };
 
-        setRooms(roomsRes.data);
+    fetchRooms();
+  }, [user?.uid]);
 
+  // Carica lista utenti (mappa _id -> {name, profilePicUrl})
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchUsers = async () => {
+      try {
+        const usersRes = await axios.get(`${API_BASE_URL}/api/v1/users`);
         const usersMap = {};
-        usersRes.data.forEach(u => {
+        usersRes.data.forEach((u) => {
           usersMap[u._id] = {
             name: u.nome || u.username || "Sconosciuto",
-            profilePicUrl: u.profilePicUrl
-              ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`
+            profilePicUrl: u._id
+              ? `${API_BASE_URL}/api/v1/users/${u._id}/profile-pic`
               : null,
           };
         });
         setAllUsers(usersMap);
       } catch (err) {
-        console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
-      } finally {
-        setLoading(false);
+        console.error("Errore caricamento utenti:", err);
       }
     };
 
-    fetchData();
+    fetchUsers();
+  }, [token]);
 
-    pusher = new Pusher(PUSHER_KEY, {
-      cluster: PUSHER_CLUSTER,
-      authEndpoint: `${API_BASE_URL}/pusher/auth`,
-      auth: {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        }
-      }
-    });
+  // Configura Pusher per aggiornare stanze con nuovi messaggi
+  useEffect(() => {
+    if (!pusherRef.current) {
+      pusherRef.current = new Pusher("6a10fce7f61c4c88633b", { cluster: "eu" });
+    }
 
-    channel = pusher.subscribe('rooms');
+    if (channelRef.current) {
+      channelRef.current.unbind_all();
+      pusherRef.current.unsubscribe(channelRef.current.name);
+      channelRef.current = null;
+    }
 
-    channel.bind('new-message', (data) => {
-      if (!data || !data.room || !data.message) return;
+    if (user?.uid && pusherRef.current) {
+      channelRef.current = pusherRef.current.subscribe(`user_${user.uid}`);
 
-      const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
-      if (!membersIds.map(String).includes(String(user.uid))) return;
+      channelRef.current.bind("new_message", (data) => {
+        // data: { roomId, message }
+        setRooms((prevRooms) => {
+          const roomIndex = prevRooms.findIndex((r) => r._id === data.roomId);
+          if (roomIndex === -1) return prevRooms;
 
-      setRooms(prevRooms => {
-        const idx = prevRooms.findIndex(r => r._id === data.room._id);
-
-        const updatedRoom = {
-          ...data.room,
-          lastMessageText: data.message.message,
-          lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
-          members: (data.room.members || []).map(m => typeof m === 'string' ? m : m._id),
-        };
-
-        if (idx !== -1) {
           const updatedRooms = [...prevRooms];
-          updatedRooms[idx] = { ...updatedRooms[idx], ...updatedRoom };
-          return updatedRooms.sort((a, b) =>
-            new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)
+          // Aggiorna lastMessageText e lastMessageTimestamp (assumendo che ci siano questi campi)
+          updatedRooms[roomIndex] = {
+            ...updatedRooms[roomIndex],
+            lastMessageText: data.message.message,
+            lastMessageTimestamp: data.message.timestamp,
+          };
+          // Rordina stanze con la più recente prima
+          updatedRooms.sort(
+            (a, b) =>
+              new Date(b.lastMessageTimestamp).getTime() -
+              new Date(a.lastMessageTimestamp).getTime()
           );
-        } else {
-          return [updatedRoom, ...prevRooms];
-        }
+          return updatedRooms;
+        });
       });
-    });
+    }
 
     return () => {
-      if (pusher?.connection?.state === "connected") {
-        channel.unbind_all();
-        pusher.unsubscribe('rooms');
-        pusher.disconnect();
-      } else if (channel) {
-        channel.unbind_all();
+      if (channelRef.current && pusherRef.current) {
+        channelRef.current.unbind_all();
+        pusherRef.current.unsubscribe(channelRef.current.name);
       }
     };
-  }, [user, token]);
+  }, [user?.uid]);
 
-  const handleUserSelect = async (selectedUser) => {
-    if (!user?.uid) {
-      alert("Devi effettuare il login per iniziare una chat.");
-      return;
-    }
-
-    try {
-      // Ordina i membri per evitare stanze duplicate
-      const membri = [user.uid, selectedUser._id].sort((a, b) => a.localeCompare(b));
-      const roomName = selectedUser.nome || selectedUser.username || "Utente";
-
-      const res = await axios.post(
-        `${API_BASE_URL}/api/v1/rooms`,
-        { name: roomName, members: membri }
-      );
-
-      const newRoomId = res.data?._id || res.data?.roomId;
-      if (newRoomId) {
-        navigate(`/rooms/${newRoomId}`);
-      }
-    } catch (err) {
-      const data = err.response?.data;
-      if (data?.roomId) {
-        navigate(`/rooms/${data.roomId}`);
-      } else {
-        alert("Errore nella creazione chat: " + (data?.message || err.message));
-      }
-    }
-  };
-
-  if (loading) return <div className="sidebar_loading">Caricamento...</div>;
-  if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
-
-  const filteredRooms = (rooms || [])
-    .filter(room => room && room.members && Array.isArray(room.members))
-    .map(room => {
-      const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
-      const otherUserId = membersIds.find(id => id !== user.uid);
-      const displayName = allUsers[otherUserId]?.name || room.name || "Chat";
-      const avatarSrc = allUsers[otherUserId]?.profilePicUrl || null;
-      const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
-
-      return { room, displayName, avatarSrc, lastMessage };
-    })
-    .filter(({ displayName }) =>
-      displayName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      const aDate = new Date(a.room.lastMessageTimestamp || 0);
-      const bDate = new Date(b.room.lastMessageTimestamp || 0);
-      return bDate - aDate;
-    });
-
+  // Ritorno componente Sidebar
   return (
-    <div className="sidebar">
-      <div className="sidebar_header">
-        <div className="sidebar_header_left">
-          <IconButton>
-            <Avatar
-              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
-              alt={user?.nome || "Utente"}
+    <div className="Sidebar">
+      <div className="Sidebar_header">
+        <h2>Chat</h2>
+        <p>Utente: {user?.nome || user?.username || "Anonimo"}</p>
+      </div>
+
+      <div className="Sidebar_chats">
+        {rooms.length === 0 && <p>Nessuna stanza trovata</p>}
+
+        {rooms.map((room) => {
+          // Trova l'altro membro della stanza (diverso dall'utente corrente)
+          const otherMemberId = room.members.find((m) => m !== user.uid);
+          const otherUser = allUsers[otherMemberId] || {};
+          const name = otherUser.name || room.name || "Stanza";
+
+          return (
+            <SidebarChat
+              key={room._id}
+              id={room._id}
+              name={name}
+              lastMessageText={room.lastMessageText}
+              avatarSrc={otherUser.profilePicUrl}
+              selected={selectedRoomId === room._id}
             />
-          </IconButton>
-          <span>{user?.nome || "Utente"}</span>
-        </div>
-        <div className="sidebar_header_right">
-          <IconButton><FilterTiltShiftIcon /></IconButton>
-          <IconButton><ChatBubbleIcon /></IconButton>
-          <IconButton><MoreVertIcon /></IconButton>
-        </div>
-      </div>
-
-      <div className="sidebar_search">
-        <div className="sidebar_search_container">
-          <SearchIcon />
-          <input
-            type="text"
-            placeholder="Cerca chat"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            aria-label="Cerca chat"
-          />
-        </div>
-      </div>
-
-      <div className="sidebar_usersearch">
-        <h4>Inizia una nuova chat</h4>
-        <UserSearch currentUserId={user.uid} onSelect={handleUserSelect} />
-      </div>
-
-      <div className="sidebar_chats">
-        {filteredRooms.map(({ room, displayName, lastMessage, avatarSrc }) => (
-          <SidebarChat
-            key={room._id}
-            id={room._id}
-            name={displayName}
-            lastMessageText={lastMessage}
-            avatarSrc={avatarSrc}
-            selected={roomId === room._id}
-          />
-        ))}
+          );
+        })}
       </div>
     </div>
   );
