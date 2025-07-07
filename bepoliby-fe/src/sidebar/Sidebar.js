@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -75,31 +73,32 @@ const Sidebar = () => {
     channel.bind('new-message', (data) => {
       if (!data || !data.room || !data.message) return;
 
-      // Mappo membri in array di stringhe userId
+      console.log("📥 Evento Pusher ricevuto:", data);
+      console.log("👤 Utente loggato:", user.uid);
+
       const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
+      console.log("👥 Membri della stanza:", membersIds);
 
-      // Ignoro stanza se non contiene l'utente corrente
-      if (!membersIds.map(String).includes(String(user.uid))) return;
-
+      if (!membersIds.map(String).includes(String(user.uid))) {
+        console.log("⛔ Utente non incluso in questa stanza. Ignorata.");
+        return;
+      }
 
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
 
         if (idx !== -1) {
-          // Aggiorna stanza esistente
           const updatedRooms = [...prevRooms];
           updatedRooms[idx] = {
             ...updatedRooms[idx],
             lastMessageText: data.message.message,
             lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
           };
-          // Ordina per ultimo messaggio più recente
           return updatedRooms.sort((a, b) =>
             new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)
           );
         } else {
-          // Nuova stanza, aggiungi in cima
-          if (!data.room._id) return prevRooms; // Sicurezza
+          if (!data.room._id) return prevRooms;
 
           return [
             {
@@ -131,7 +130,6 @@ const Sidebar = () => {
     }
 
     try {
-      // Ordina gli ID per evitare duplicati
       const membri = [user.uid, selectedUser._id].sort((a, b) => a.localeCompare(b));
       const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
@@ -164,17 +162,12 @@ const Sidebar = () => {
   if (loading) return <div className="sidebar_loading">Caricamento...</div>;
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
-  // Preparo le stanze filtrate e ordinate
   const filteredRooms = (rooms || [])
     .filter(room => room && room.members && Array.isArray(room.members))
     .map(room => {
-      // members possono essere stringhe (id) o oggetti popolati
       const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
-      // Trovo l'altro utente (diverso da me)
       const otherUserId = membersIds.find(id => id !== user.uid);
-      // Cerco nome utente da mappa
       const displayName = allUsers[otherUserId] || room.name || "Chat";
-      // Ultimo messaggio
       const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
       return { room, displayName, lastMessage };
@@ -182,7 +175,6 @@ const Sidebar = () => {
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    // Ordino per data ultimo messaggio decrescente
     .sort((a, b) => {
       const aDate = new Date(a.room.lastMessageTimestamp || 0);
       const bDate = new Date(b.room.lastMessageTimestamp || 0);
