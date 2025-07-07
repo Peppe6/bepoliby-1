@@ -83,34 +83,26 @@ const Sidebar = () => {
         console.log("⛔ Utente non incluso in questa stanza. Ignorata.");
         return;
       }
+setRooms(prevRooms => {
+  const idx = prevRooms.findIndex(r => r._id === data.room._id);
 
-      setRooms(prevRooms => {
-        const idx = prevRooms.findIndex(r => r._id === data.room._id);
+  const updatedRoom = {
+    ...data.room,
+    lastMessageText: data.message.message,
+    lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
+    members: (data.room.members || []).map(m => typeof m === 'string' ? m : m._id), // forza membri come ID
+  };
 
-        if (idx !== -1) {
-          const updatedRooms = [...prevRooms];
-          updatedRooms[idx] = {
-            ...updatedRooms[idx],
-            lastMessageText: data.message.message,
-            lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
-          };
-          return updatedRooms.sort((a, b) =>
-            new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)
-          );
-        } else {
-          if (!data.room._id) return prevRooms;
-
-          return [
-            {
-              ...data.room,
-              lastMessageText: data.message.message,
-              lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
-            },
-            ...prevRooms,
-          ];
-        }
-      });
-    });
+  if (idx !== -1) {
+    const updatedRooms = [...prevRooms];
+    updatedRooms[idx] = { ...updatedRooms[idx], ...updatedRoom };
+    return updatedRooms.sort((a, b) =>
+      new Date(b.lastMessageTimestamp || 0) - new Date(a.lastMessageTimestamp || 0)
+    );
+  } else {
+    return [updatedRoom, ...prevRooms];
+  }
+});
 
     return () => {
       if (pusher.connection.state === "connected") {
