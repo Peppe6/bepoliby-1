@@ -1,15 +1,16 @@
+
 require('dotenv').config();
-
 const express = require('express');
-const cors = require('cors');
 const mongoose = require('mongoose');
-const Pusher = require('pusher');
+const cors = require('cors');
 const helmet = require('helmet');
+const session = require('express-session');
+const Pusher = require('pusher');
+const jwt = require('jsonwebtoken');
+const verifyToken = require('./verifyToken');
 
-const User = require('./models/User.js');
-const Room = require('./models/Room.js');
-const verifyToken = require('./middleware/verifyToken.js');
-
+const Rooms = require('./model/dbRooms');
+const Utente = require('./model/dbUser')
 const app = express();
 
 app.use(express.json());
