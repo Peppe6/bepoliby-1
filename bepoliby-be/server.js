@@ -98,23 +98,6 @@ app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
   }
 });
 
-const results = await Utente.find(filter)
-  .skip((page - 1) * limit)
-  .limit(limit)
-  .select("_id nome username profilePic") // attenzione, deve essere profilePic, non profilePicUrl
-  .exec();
-
-const resultsWithPics = results.map(user => ({
-  _id: user._id,
-  nome: user.nome,
-  username: user.username,
-  profilePicUrl: user.profilePic?.data
-    ? `data:${user.profilePic.contentType};base64,${user.profilePic.data.toString('base64')}`
-    : null,
-}));
-
-res.json({ results: resultsWithPics, total });
-
 // Ricerca utenti
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
@@ -150,8 +133,6 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Errore interno server" });
   }
 });
-
-// (Resto delle API invariato...)
 
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
