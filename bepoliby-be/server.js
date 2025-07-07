@@ -252,14 +252,17 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     console.log("🔁 Invio su Pusher: ", simplifiedRoom);
 
+    // Trigger solo sul canale specifico della stanza
     await PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId,
       message: newMessage,
     });
-    await PusherClient.trigger("rooms", "new-message", {
-      room: simplifiedRoom,
-      message: newMessage,
-    });
+
+    // Se vuoi mantenere anche il trigger globale per aggiornare la lista stanze (opzionale)
+    // await PusherClient.trigger("rooms", "new-message", {
+    //   room: simplifiedRoom,
+    //   message: newMessage,
+    // });
 
     res.status(201).json(newMessage);
   } catch (err) {
@@ -267,6 +270,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     res.status(500).json({ error: "Errore interno nel salvataggio messaggio" });
   }
 });
+
 
 app.listen(port, () => {
   console.log(`🚀 Server attivo su porta ${port}`);
