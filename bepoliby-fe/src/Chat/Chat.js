@@ -17,6 +17,8 @@ function Chat() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [{ user, token }] = useStateValue();
   const messagesEndRef = useRef(null);
+  const [sending, setSending] = useState(false);
+  const inputRef = useRef(null);
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
@@ -27,6 +29,7 @@ function Chat() {
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
     setShowEmojiPicker(false);
+    inputRef.current?.focus();
   };
 
   useEffect(() => {
@@ -43,13 +46,14 @@ function Chat() {
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe("rooms");
 
-    channel.bind("new-message", (data) => {
+    const newMessageHandler = (data) => {
       if (!data || !data.room || !data.message) return;
       if (data.room._id !== roomId) return;
 
       const newMsg = data.message;
 
       setRoomMessages(prev => {
+        // Sostituisci messaggio temporaneo con quello definitivo
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -62,16 +66,19 @@ function Chat() {
           return copy;
         }
 
+        // Se già presente, evita duplicati
         if (prev.some(m => m._id === newMsg._id)) return prev;
 
         return [...prev, newMsg];
       });
 
       setLastSeen(newMsg.timestamp);
-    });
+    };
+
+    channel.bind("new-message", newMessageHandler);
 
     return () => {
-      channel.unbind_all();
+      channel.unbind("new-message", newMessageHandler);
       channel.unsubscribe();
       pusher.disconnect();
     };
@@ -106,8 +113,9 @@ function Chat() {
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || !user?.uid || !roomId) return;
+    if (!input.trim() || !user?.uid || !roomId || sending) return;
 
+    setSending(true);
     const tempId = `temp-${Date.now()}`;
     const newMessage = {
       _id: tempId,
@@ -126,6 +134,8 @@ function Chat() {
       console.error("Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
       alert("Errore nell'invio del messaggio, riprova.");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -147,6 +157,7 @@ function Chat() {
       <div className='Chat_header'>
         <Avatar
           src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roomName)}&background=random&color=fff&size=128`}
+          alt={roomName}
         />
         <div className='Chat_header_info'>
           <h3>{roomName}</h3>
@@ -179,6 +190,7 @@ function Chat() {
                 <Avatar
                   className="Chat_avatar"
                   src={`https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`}
+                  alt={message.name}
                 />
               )}
               <span className="Chat_name">{message.name}</span>
@@ -205,13 +217,15 @@ function Chat() {
         </IconButton>
         <form onSubmit={sendMessage}>
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Scrivi un messaggio..."
             type="text"
             aria-label="Campo messaggio"
+            disabled={sending}
           />
-          <button type="submit" disabled={!input.trim() || !roomId}>Invia</button>
+          <button type="submit" disabled={!input.trim() || !roomId || sending}>Invia</button>
         </form>
         {showEmojiPicker && (
           <EmojiPicker
@@ -226,6 +240,7 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
 
