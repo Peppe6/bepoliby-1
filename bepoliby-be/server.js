@@ -83,7 +83,7 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// Endpoint per fornire immagine profilo come file binario
+// ✅ Endpoint immagine profilo
 app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
   try {
     const utente = await Utente.findById(req.params.id).select("profilePic");
@@ -98,7 +98,26 @@ app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
   }
 });
 
-// Ricerca utenti
+// ✅ Endpoint elenco utenti (usato da Sidebar)
+app.get("/api/v1/users", verifyToken, async (req, res) => {
+  try {
+    const utenti = await Utente.find().select("_id nome username profilePic");
+    const utentiConFoto = utenti.map(u => ({
+      _id: u._id,
+      nome: u.nome,
+      username: u.username,
+      profilePicUrl: u.profilePic?.data
+        ? `/api/v1/users/${u._id}/profile-pic`
+        : null,
+    }));
+    res.status(200).json(utentiConFoto);
+  } catch (err) {
+    console.error("❌ Errore nel recupero utenti:", err);
+    res.status(500).json({ error: "Errore interno nel recupero utenti" });
+  }
+});
+
+// ✅ Ricerca utenti
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
     const q = req.query.q || "";
@@ -106,9 +125,8 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
 
     const regex = new RegExp(q, "i");
-
     const filter = {
-      $or: [{ nome: regex }, { username: regex }],
+      $or: [{ nome: regex }, { username: regex }]
     };
 
     const total = await Utente.countDocuments(filter);
@@ -116,15 +134,15 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
     const results = await Utente.find(filter)
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("_id nome username")
-      .exec();
+      .select("_id nome username profilePic");
 
-    // aggiungo URL immagine profilo
     const resultsWithPicUrl = results.map(u => ({
       _id: u._id,
       nome: u.nome,
       username: u.username,
-      profilePicUrl: `/api/v1/users/${u._id}/profile-pic`
+      profilePicUrl: u.profilePic?.data
+        ? `/api/v1/users/${u._id}/profile-pic`
+        : null,
     }));
 
     res.json({ results: resultsWithPicUrl, total });
@@ -134,6 +152,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   }
 });
 
+// ✅ Recupera stanze
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const rooms = await Rooms.find({ members: req.user.uid })
@@ -147,18 +166,13 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// ✅ Recupera singola stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
-    const room = await Rooms.findById(req.params.roomId).populate(
-      "members",
-      "nome username"
-    );
-
+    const room = await Rooms.findById(req.params.roomId).populate("members", "nome username");
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    const isMember = room.members.some(
-      (member) => member._id.toString() === req.user.uid
-    );
+    const isMember = room.members.some(m => m._id.toString() === req.user.uid);
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     res.status(200).json(room);
@@ -168,6 +182,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
+// ✅ Crea stanza (evita duplicati)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -184,12 +199,9 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
       members: { $all: sortedMembers, $size: sortedMembers.length },
     });
 
-    const exactRoom = existingRooms.find((room) => {
-      const roomMembersSorted = room.members.map((m) => m.toString()).sort();
-      return (
-        JSON.stringify(roomMembersSorted) ===
-        JSON.stringify(sortedMembers.map((m) => m.toString()))
-      );
+    const exactRoom = existingRooms.find(room => {
+      const roomSorted = room.members.map(m => m.toString()).sort();
+      return JSON.stringify(roomSorted) === JSON.stringify(sortedMembers.map(m => m.toString()));
     });
 
     if (exactRoom) return res.status(200).json(exactRoom);
@@ -209,6 +221,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
+// ✅ Invia messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
@@ -219,9 +232,7 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     const room = await Rooms.findById(roomId);
     if (!room) return res.status(404).json({ error: "Stanza non trovata" });
 
-    const isMember = room.members.some(
-      (member) => member.toString() === req.user.uid
-    );
+    const isMember = room.members.some(m => m.toString() === req.user.uid);
     if (!isMember) return res.status(403).json({ error: "Accesso negato" });
 
     const newMessage = {
@@ -240,24 +251,21 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
     const simplifiedRoom = {
       _id: room._id.toString(),
       name: room.name,
-      members: room.members.map((m) => ({
+      members: room.members.map(m => ({
         _id: m._id.toString(),
         nome: m.nome,
-        username: m.username,
+        username: m.username
       })),
       lastMessageText: newMessage.message,
-      lastMessageTimestamp: newMessage.timestamp,
+      lastMessageTimestamp: newMessage.timestamp
     };
 
-    console.log("📡 Trigger su Pusher per chat e sidebar");
-
-    // Trigger per chat attiva
+    // 🔔 Pusher triggers
     await PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId,
       message: newMessage,
     });
 
-    // Trigger per sidebar
     await PusherClient.trigger("rooms", "new-message", {
       room: simplifiedRoom,
       message: newMessage,
@@ -273,3 +281,4 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Server attivo su porta ${port}`);
 });
+
