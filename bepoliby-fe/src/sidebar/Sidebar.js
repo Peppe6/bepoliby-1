@@ -51,15 +51,14 @@ const Sidebar = () => {
 
         setRooms(roomsRes.data);
 
-        const usersMap = {};
-        usersRes.data.forEach(u => {
-          usersMap[u._id] = {
-            name: u.nome || u.username || "Sconosciuto",
-            profilePicUrl: u.profilePicUrl
-              ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`
-              : null,
-          };
-        });
+     const usersMap = {};
+usersRes.data.forEach(u => {
+  usersMap[u._id] = {
+    name: u.nome || u.username || "Sconosciuto",
+    profilePicUrl: `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`,
+  };
+});
+
         setAllUsers(usersMap);
       } catch (err) {
         console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
