@@ -14,7 +14,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
-const PROFILE_PIC_BASE_URL = "https://bepoli.onrender.com/api/user-photo"; // Cambia se serve
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
 const PUSHER_CLUSTER = "eu";
 
@@ -27,7 +26,6 @@ const Sidebar = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
-  // Imposta header Authorization con token JWT
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -56,7 +54,7 @@ const Sidebar = () => {
         usersRes.data.forEach(u => {
           usersMap[u._id] = {
             name: u.nome || u.username || "Sconosciuto",
-            profilePicUrl: u.profilePicUrl || null  // Se backend ha già URL completo
+            profilePicUrl: u.profilePicUrl || null
           };
         });
         setAllUsers(usersMap);
@@ -153,7 +151,6 @@ const Sidebar = () => {
   if (loading) return <div className="sidebar_loading">Caricamento...</div>;
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
-  // Per ogni stanza troviamo l'altro membro e mostriamo nome + avatar
   const filteredRooms = rooms
     .filter(room => room && Array.isArray(room.members))
     .map(room => {
@@ -163,10 +160,8 @@ const Sidebar = () => {
 
       const displayName = otherUser.name || room.name || "Chat";
 
-      // Usa profilePicUrl già presente oppure fallback con endpoint foto profilo backend
-      const avatarSrc = otherUser.profilePicUrl
-        ? otherUser.profilePicUrl
-        : (otherUserId ? `${PROFILE_PIC_BASE_URL}/${otherUserId}` : null);
+      const avatarSrc = otherUser.profilePicUrl ||
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
 
       const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
@@ -235,5 +230,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
 
