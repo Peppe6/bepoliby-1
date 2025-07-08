@@ -1,139 +1,95 @@
-import React, { useState, useEffect } from 'react';
-import './UserSearch.css';
-import { Avatar } from '@mui/material';
 
-const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
-const LIMIT = 10;
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { Avatar } from "@mui/material";
 
-export default function UserSearch({ currentUserId, onSelect }) {
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
+const PROFILE_PIC_BASE_URL = "https://bepoli.onrender.com/api/user-photo"; // Cambia con il tuo dominio/backend
+
+function UserSearch({ currentUserId, onSelect }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!query) {
+      if (!query.trim()) {
         setResults([]);
-        setHasMore(false);
         return;
       }
-
-      setIsLoading(true);
       try {
-        const res = await fetch(`${API_SEARCH_URL}?q=${encodeURIComponent(query)}&page=${page}&limit=${LIMIT}`, {
-          headers: {
-            Authorization: `Bearer ${sessionStorage.getItem("token")}`
-          }
+        const res = await axios.get(`${API_BASE_URL}/api/v1/users`, {
+          params: { page, limit: 10, q: query },
         });
 
-        const data = await res.json();
-
-        const processedResults = data.results
-          .filter(u => u._id !== currentUserId);
-
-        if (page === 1) {
-          setResults(processedResults);
-        } else {
-          setResults(prev => [...prev, ...processedResults]);
-        }
-
-        setHasMore(data.results.length === LIMIT);
-      } catch (err) {
-        console.error("Errore ricerca utenti:", err);
-      } finally {
-        setIsLoading(false);
+        // Escludi utente corrente
+        const filtered = res.data.filter(u => u._id !== currentUserId);
+        setResults(filtered);
+      } catch (error) {
+        console.error("Errore nel caricamento utenti:", error);
       }
     };
 
     fetchUsers();
   }, [query, page, currentUserId]);
 
-  const handleInput = (e) => {
-    setQuery(e.target.value);
-    setPage(1);
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setPage(1);
-    }
-  };
-
-  const loadMore = () => {
-    setPage(prev => prev + 1);
-  };
-
   return (
-    <div className="user-search">
+    <div className="user-search-container">
       <input
         type="text"
-        placeholder="Cerca utente per username o nome..."
+        placeholder="Cerca utenti..."
         value={query}
-        onChange={handleInput}
-        onKeyDown={handleKeyDown}
-        autoComplete="off"
-        aria-label="Cerca utente"
+        onChange={(e) => setQuery(e.target.value)}
+        aria-label="Cerca utenti"
       />
-
-      {isLoading && <div className="loading">Caricamento...</div>}
-
       <div className="user-search-results">
-        {results.length > 0 ? (
-          <>
-            {results.map(user => {
-              const key = user._id;
-              const name = user.nome || user.username || "Utente";
-              const avatarUrl = user.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+        {results.map(user => {
+          const key = user._id;
+          const name = user.nome || user.username || "Utente";
 
-              return (
-                <div
-                  key={key}
-                  className="user-result"
-                  tabIndex={0}
-                  onClick={() => {
-                    onSelect(user);
-                    setQuery('');
-                    setResults([]);
-                    setPage(1);
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      onSelect(user);
-                      setQuery('');
-                      setResults([]);
-                      setPage(1);
-                    }
-                  }}
-                  role="button"
-                  aria-pressed="false"
-                >
-                  <Avatar
-                    src={avatarUrl}
-                    alt={`${name} avatar`}
-                    sx={{ width: 32, height: 32, marginRight: 1 }}
-                  >
-                    {!user.profilePicUrl && (name[0] || "U").toUpperCase()}
-                  </Avatar>
-                  <strong>{name}</strong>
-                </div>
-              );
-            })}
-            {hasMore && (
-              <button className="load-more-btn" onClick={loadMore}>
-                Carica altri
-              </button>
-            )}
-          </>
-        ) : (
-          !isLoading && query && <div className="no-results">Nessun risultato trovato</div>
-        )}
+          // Costruisci URL foto profilo
+          const avatarUrl = user.profilePicUrl
+            ? user.profilePicUrl
+            : (user._id ? `${PROFILE_PIC_BASE_URL}/${user._id}` : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`);
+
+          return (
+            <div
+              key={key}
+              className="user-result"
+              tabIndex={0}
+              onClick={() => {
+                onSelect(user);
+                setQuery('');
+                setResults([]);
+                setPage(1);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(user);
+                  setQuery('');
+                  setResults([]);
+                  setPage(1);
+                }
+              }}
+              role="button"
+              aria-pressed="false"
+            >
+              <Avatar
+                src={avatarUrl}
+                alt={`${name} avatar`}
+                sx={{ width: 32, height: 32, marginRight: 1 }}
+              >
+                {!user.profilePicUrl && (name[0] || "U").toUpperCase()}
+              </Avatar>
+              <strong>{name}</strong>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
 }
 
+export default UserSearch;
 
