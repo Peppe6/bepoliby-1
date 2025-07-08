@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
 import { Avatar, IconButton } from '@mui/material';
@@ -16,15 +16,11 @@ function Chat() {
   const [roomMessages, setRoomMessages] = useState([]);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [sending, setSending] = useState(false);
-  const [userMap, setUserMap] = useState({});
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [{ user, token }] = useStateValue();
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
-
-  const pusherRef = useRef(null);
-  const channelRef = useRef(null);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -46,35 +42,29 @@ function Chat() {
     }
   }, [token]);
 
+  // Realtime listener con Pusher
   useEffect(() => {
-    if (!pusherRef.current) {
-      pusherRef.current = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
-    }
-    return () => {
-      if (pusherRef.current) {
-        pusherRef.current.disconnect();
-        pusherRef.current = null;
-      }
-    };
-  }, []);
+    if (!roomId || !user?.uid) return;
 
-  useEffect(() => {
-    if (!roomId || !user?.uid || !pusherRef.current) return;
+    console.log("👂 Mi iscrivo al canale:", `room_${roomId}`);
 
-    if (channelRef.current) {
-      channelRef.current.unbind_all();
-      pusherRef.current.unsubscribe(channelRef.current.name);
-      channelRef.current = null;
-    }
-
-    channelRef.current = pusherRef.current.subscribe(`room_${roomId}`);
+    const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
+    const channel = pusher.subscribe(`room_${roomId}`);
 
     const handleNewMessage = (data) => {
+      console.log("🔔 Messaggio ricevuto da Pusher:", data);
       if (!data || !data.message) return;
+
       const newMsg = data.message;
 
       setRoomMessages(prev => {
-        if (prev.some(m => m._id === newMsg._id)) return prev;
+        const alreadyExists = prev.some(m =>
+          m.uid === newMsg.uid &&
+          m.message === newMsg.message &&
+          new Date(m.timestamp).getTime() === new Date(newMsg.timestamp).getTime()
+        );
+
+        if (alreadyExists) return prev;
 
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
@@ -94,17 +84,17 @@ function Chat() {
       setLastSeen(newMsg.timestamp);
     };
 
-    channelRef.current.bind("inserted", handleNewMessage);
+    channel.bind("inserted", handleNewMessage);
 
     return () => {
-      if (channelRef.current) {
-        channelRef.current.unbind("inserted", handleNewMessage);
-        pusherRef.current.unsubscribe(channelRef.current.name);
-        channelRef.current = null;
-      }
+      console.log("🚪 Mi disiscrivo da:", `room_${roomId}`);
+      channel.unbind("inserted", handleNewMessage);
+      channel.unsubscribe();
+      pusher.disconnect();
     };
   }, [roomId, user?.uid]);
 
+  // Carica dati della stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -118,17 +108,6 @@ function Chat() {
 
         const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
-
-        // Costruisce mappa utenti con foto
-        const memberMap = {};
-        (res.data.members || []).forEach(m => {
-          memberMap[m._id] = {
-            name: m.nome || m.username,
-            profilePicUrl: m.profilePicUrl || null
-          };
-        });
-        setUserMap(memberMap);
-
       } catch (err) {
         console.error("❌ Errore caricamento chat:", err);
         setRoomName("⚠️ Stanza non trovata o accesso negato");
@@ -212,7 +191,6 @@ function Chat() {
         {roomMessages.map((message, index) => {
           const isOwnMessage = message.uid === user?.uid;
           const isValidDate = !isNaN(new Date(message.timestamp));
-          const sender = userMap[message.uid];
 
           return (
             <div
@@ -222,14 +200,11 @@ function Chat() {
               {!isOwnMessage && (
                 <Avatar
                   className="Chat_avatar"
-                  src={
-                    sender?.profilePicUrl ||
-                    `https://ui-avatars.com/api/?name=${encodeURIComponent(sender?.name || message.name)}&background=random&color=fff`
-                  }
-                  alt={sender?.name || message.name}
+                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`}
+                  alt={message.name}
                 />
               )}
-              <span className="Chat_name">{sender?.name || message.name}</span>
+              <span className="Chat_name">{message.name}</span>
               <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
                 {message.message}
                 <span className="Chat_timestamp">
@@ -276,6 +251,7 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
 
