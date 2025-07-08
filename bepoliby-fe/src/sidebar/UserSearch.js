@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
@@ -31,12 +32,12 @@ export default function UserSearch({ currentUserId, onSelect }) {
 
         const data = await res.json();
 
-        // Mappa i risultati per aggiungere profilePicUrl completo se esiste
+        // Mappa i risultati per aggiungere profilePicUrl completo se esiste il campo profilePic
         const processedResults = data.results
           .filter(u => u._id !== currentUserId)
           .map(u => ({
             ...u,
-            profilePicUrl: u.profilePicUrl
+            profilePicUrl: u.profilePic 
               ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`
               : null
           }));
@@ -94,7 +95,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
             {results.map(user => {
               const key = user._id || user.id;
               const name = user.nome || user.username || "Utente";
-              const avatarUrl = user.profilePicUrl 
+              const avatarUrl = user.profilePicUrl
                 ? user.profilePicUrl
                 : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
