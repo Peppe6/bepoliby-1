@@ -51,13 +51,15 @@ const Sidebar = () => {
 
         setRooms(roomsRes.data);
 
-     const usersMap = {};
+const usersMap = {};
 usersRes.data.forEach(u => {
   usersMap[u._id] = {
     name: u.nome || u.username || "Sconosciuto",
-    profilePicUrl: `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`,
+    profilePicUrl: u.profilePic ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic` : null,
   };
 });
+setAllUsers(usersMap);
+
 
         setAllUsers(usersMap);
       } catch (err) {
