@@ -29,12 +29,14 @@ export default function UserSearch({ currentUserId, onSelect }) {
         });
 
         const data = await res.json();
-        const filtered = data.results.filter(u => u._id !== currentUserId);
+
+        const processedResults = data.results
+          .filter(u => u._id !== currentUserId);
 
         if (page === 1) {
-          setResults(filtered);
+          setResults(processedResults);
         } else {
-          setResults(prev => [...prev, ...filtered]);
+          setResults(prev => [...prev, ...processedResults]);
         }
 
         setHasMore(data.results.length === LIMIT);
@@ -82,7 +84,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
         {results.length > 0 ? (
           <>
             {results.map(user => {
-              const key = user._id || user.id;
+              const key = user._id;
               const name = user.nome || user.username || "Utente";
               const avatarUrl = user.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
@@ -133,4 +135,5 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
 
