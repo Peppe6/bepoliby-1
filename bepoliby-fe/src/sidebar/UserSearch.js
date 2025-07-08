@@ -1,10 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
 
 const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
-const PROFILE_PIC_BASE_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users`;
 const LIMIT = 10;
 
 export default function UserSearch({ currentUserId, onSelect }) {
@@ -31,21 +29,12 @@ export default function UserSearch({ currentUserId, onSelect }) {
         });
 
         const data = await res.json();
-
-        // Mappa i risultati per aggiungere profilePicUrl completo se esiste il campo profilePic
-        const processedResults = data.results
-          .filter(u => u._id !== currentUserId)
-          .map(u => ({
-            ...u,
-            profilePicUrl: u.profilePic 
-              ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic`
-              : null
-          }));
+        const filtered = data.results.filter(u => u._id !== currentUserId);
 
         if (page === 1) {
-          setResults(processedResults);
+          setResults(filtered);
         } else {
-          setResults(prev => [...prev, ...processedResults]);
+          setResults(prev => [...prev, ...filtered]);
         }
 
         setHasMore(data.results.length === LIMIT);
@@ -95,9 +84,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
             {results.map(user => {
               const key = user._id || user.id;
               const name = user.nome || user.username || "Utente";
-              const avatarUrl = user.profilePicUrl
-                ? user.profilePicUrl
-                : `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+              const avatarUrl = user.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
 
               return (
                 <div
@@ -146,3 +133,4 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
