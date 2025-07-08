@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -67,7 +66,6 @@ const Sidebar = () => {
 
     fetchData();
 
-    // Setup Pusher
     pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
       authEndpoint: `${API_BASE_URL}/pusher/auth`,
@@ -182,13 +180,21 @@ const Sidebar = () => {
         <div className="sidebar_header_left">
           <IconButton>
             <Avatar
-              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
+              src={user?.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
               alt={user?.nome || "Utente"}
             />
           </IconButton>
           <span>{user?.nome || "Utente"}</span>
         </div>
         <div className="sidebar_header_right">
+          {/* Foto profilo utente in alto a destra */}
+          <IconButton>
+            <Avatar
+              src={user?.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
+              alt={user?.nome || "Utente"}
+              sx={{ width: 32, height: 32 }}
+            />
+          </IconButton>
           <IconButton><FilterTiltShiftIcon /></IconButton>
           <IconButton><ChatBubbleIcon /></IconButton>
           <IconButton><MoreVertIcon /></IconButton>
@@ -230,4 +236,5 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
