@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'; 
+
+modifica:import React, { useState, useEffect, useRef } from 'react'; 
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
 import { Avatar, IconButton } from '@mui/material';
@@ -7,8 +8,6 @@ import { useParams } from 'react-router-dom';
 import Pusher from 'pusher-js';
 import EmojiPicker from 'emoji-picker-react';
 import { useStateValue } from '../StateProvider';
-
-const PROFILE_PIC_BASE_URL = "https://bepoli.onrender.com/api/user-photo";
 
 function Chat() {
   const { roomId } = useParams();
@@ -121,11 +120,10 @@ function Chat() {
         const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
 
-        // Costruisce mappa utenti con _id, nome e profilePicUrl (anche se poi usiamo solo _id per foto)
+        // Costruisce mappa utenti con foto
         const memberMap = {};
         (res.data.members || []).forEach(m => {
           memberMap[m._id] = {
-            _id: m._id,
             name: m.nome || m.username,
             profilePicUrl: m.profilePicUrl || null
           };
@@ -226,9 +224,8 @@ function Chat() {
                 <Avatar
                   className="Chat_avatar"
                   src={
-                    sender
-                      ? `${PROFILE_PIC_BASE_URL}/${sender._id}`
-                      : `https://ui-avatars.com/api/?name=${encodeURIComponent(sender?.name || message.name)}&background=random&color=fff`
+                    sender?.profilePicUrl ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(sender?.name || message.name)}&background=random&color=fff`
                   }
                   alt={sender?.name || message.name}
                 />
@@ -280,6 +277,7 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
 
