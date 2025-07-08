@@ -1,4 +1,4 @@
-mo devo fare questa modifca anche qui:import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
 
