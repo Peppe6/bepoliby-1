@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -48,7 +47,7 @@ app.use(helmet({
       ],
       scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.pusher.com"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:"],
+      imgSrc: ["'self'", "data:", "https://bepoli.onrender.com"],
       frameSrc: ["'self'"]
     }
   }
@@ -84,33 +83,15 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// ✅ Immagine profilo - PUBBLICA
-app.get("/api/v1/users/:id/profile-pic", async (req, res) => {
-  try {
-    const utente = await Utente.findById(req.params.id).select("profilePic");
-    if (!utente || !utente.profilePic || !utente.profilePic.data) {
-      return res.status(404).send("Immagine profilo non trovata");
-    }
-    res.set("Content-Type", utente.profilePic.contentType);
-    res.set("Cache-Control", "public, max-age=86400"); // 1 giorno
-    res.send(utente.profilePic.data);
-  } catch (err) {
-    console.error("Errore recupero immagine profilo:", err);
-    res.status(500).send("Errore server");
-  }
-});
-
-// ✅ Elenco utenti con profilePicUrl ASSOLUTO
+// ✅ Elenco utenti con profilePicUrl dal dominio principale
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
-    const utenti = await Utente.find().select("_id nome username profilePic");
+    const utenti = await Utente.find().select("_id nome username");
     const utentiConFoto = utenti.map(u => ({
       _id: u._id,
       nome: u.nome,
       username: u.username,
-      profilePicUrl: u.profilePic?.data
-        ? `${req.protocol}://${req.get("host")}/api/v1/users/${u._id}/profile-pic`
-        : null,
+      profilePicUrl: `https://bepoli.onrender.com/api/user-photo/${u._id}`
     }));
     res.status(200).json(utentiConFoto);
   } catch (err) {
@@ -119,7 +100,7 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Ricerca utenti con profilePicUrl ASSOLUTO
+// ✅ Ricerca utenti con profilePicUrl dal dominio principale
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
     const q = req.query.q || "";
@@ -136,15 +117,13 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
     const results = await Utente.find(filter)
       .skip((page - 1) * limit)
       .limit(limit)
-      .select("_id nome username profilePic");
+      .select("_id nome username");
 
     const resultsWithPicUrl = results.map(u => ({
       _id: u._id,
       nome: u.nome,
       username: u.username,
-      profilePicUrl: u.profilePic?.data
-        ? `${req.protocol}://${req.get("host")}/api/v1/users/${u._id}/profile-pic`
-        : null,
+      profilePicUrl: `https://bepoli.onrender.com/api/user-photo/${u._id}`
     }));
 
     res.json({ results: resultsWithPicUrl, total });
