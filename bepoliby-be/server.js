@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -83,14 +84,15 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
 
 app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
 
-// ✅ Endpoint immagine profilo
-app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
+// ✅ Immagine profilo - PUBBLICA
+app.get("/api/v1/users/:id/profile-pic", async (req, res) => {
   try {
     const utente = await Utente.findById(req.params.id).select("profilePic");
     if (!utente || !utente.profilePic || !utente.profilePic.data) {
       return res.status(404).send("Immagine profilo non trovata");
     }
     res.set("Content-Type", utente.profilePic.contentType);
+    res.set("Cache-Control", "public, max-age=86400"); // 1 giorno
     res.send(utente.profilePic.data);
   } catch (err) {
     console.error("Errore recupero immagine profilo:", err);
@@ -98,7 +100,7 @@ app.get("/api/v1/users/:id/profile-pic", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Endpoint elenco utenti (usato da Sidebar)
+// ✅ Elenco utenti con profilePicUrl ASSOLUTO
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const utenti = await Utente.find().select("_id nome username profilePic");
@@ -107,7 +109,7 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
       nome: u.nome,
       username: u.username,
       profilePicUrl: u.profilePic?.data
-        ? `/api/v1/users/${u._id}/profile-pic`
+        ? `${req.protocol}://${req.get("host")}/api/v1/users/${u._id}/profile-pic`
         : null,
     }));
     res.status(200).json(utentiConFoto);
@@ -117,7 +119,7 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Ricerca utenti
+// ✅ Ricerca utenti con profilePicUrl ASSOLUTO
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
     const q = req.query.q || "";
@@ -141,7 +143,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
       nome: u.nome,
       username: u.username,
       profilePicUrl: u.profilePic?.data
-        ? `/api/v1/users/${u._id}/profile-pic`
+        ? `${req.protocol}://${req.get("host")}/api/v1/users/${u._id}/profile-pic`
         : null,
     }));
 
@@ -260,7 +262,6 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
       lastMessageTimestamp: newMessage.timestamp
     };
 
-    // 🔔 Pusher triggers
     await PusherClient.trigger(`room_${roomId}`, "inserted", {
       roomId,
       message: newMessage,
@@ -281,4 +282,3 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 app.listen(port, () => {
   console.log(`🚀 Server attivo su porta ${port}`);
 });
-
