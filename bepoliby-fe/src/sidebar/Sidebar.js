@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -53,7 +55,7 @@ const Sidebar = () => {
         usersRes.data.forEach(u => {
           usersMap[u._id] = {
             name: u.nome || u.username || "Sconosciuto",
-            profilePicUrl: u.profilePicUrl || null, // ✅ usa URL fornito
+            profilePicUrl: u.profilePicUrl || null  // ✅ NON toccare, è già un URL completo
           };
         });
         setAllUsers(usersMap);
@@ -79,18 +81,19 @@ const Sidebar = () => {
     channel = pusher.subscribe('rooms');
 
     channel.bind('new-message', (data) => {
-      if (!data?.room || !data.message) return;
+      if (!data || !data.room || !data.message) return;
 
       const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
       if (!membersIds.includes(user.uid)) return;
 
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
+
         const updatedRoom = {
           ...data.room,
           lastMessageText: data.message.message,
           lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
-          members: membersIds,
+          members: (data.room.members || []).map(m => typeof m === 'string' ? m : m._id),
         };
 
         if (idx !== -1) {
@@ -106,10 +109,12 @@ const Sidebar = () => {
     });
 
     return () => {
-      if (channel) {
+      if (pusher?.connection?.state === "connected") {
         channel.unbind_all();
         pusher.unsubscribe('rooms');
         pusher.disconnect();
+      } else if (channel) {
+        channel.unbind_all();
       }
     };
   }, [user, token]);
@@ -147,22 +152,24 @@ const Sidebar = () => {
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
   const filteredRooms = rooms
-    .filter(room => Array.isArray(room.members))
+    .filter(room => room && Array.isArray(room.members))
     .map(room => {
       const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
       const otherUserId = membersIds.find(id => id !== user.uid);
       const displayName = allUsers[otherUserId]?.name || room.name || "Chat";
       const avatarSrc = allUsers[otherUserId]?.profilePicUrl || null;
-      const lastMessage = room.lastMessageText || (room.messages?.at(-1)?.message) || "";
+      const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
       return { room, displayName, avatarSrc, lastMessage };
     })
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .sort((a, b) =>
-      new Date(b.room.lastMessageTimestamp || 0) - new Date(a.room.lastMessageTimestamp || 0)
-    );
+    .sort((a, b) => {
+      const aDate = new Date(a.room.lastMessageTimestamp || 0);
+      const bDate = new Date(b.room.lastMessageTimestamp || 0);
+      return bDate - aDate;
+    });
 
   return (
     <div className="sidebar">
@@ -218,6 +225,5 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
 
 
