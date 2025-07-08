@@ -13,7 +13,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
-const PROFILE_PIC_BASE_URL = `${API_BASE_URL}/api/v1/users`;
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
 const PUSHER_CLUSTER = "eu";
 
@@ -26,7 +25,6 @@ const Sidebar = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
-  // Aggiorna axios default header Authorization se cambia token
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -51,16 +49,13 @@ const Sidebar = () => {
 
         setRooms(roomsRes.data);
 
-const usersMap = {};
-usersRes.data.forEach(u => {
-  usersMap[u._id] = {
-    name: u.nome || u.username || "Sconosciuto",
-    profilePicUrl: u.profilePic ? `${PROFILE_PIC_BASE_URL}/${u._id}/profile-pic` : null,
-  };
-});
-setAllUsers(usersMap);
-
-
+        const usersMap = {};
+        usersRes.data.forEach(u => {
+          usersMap[u._id] = {
+            name: u.nome || u.username || "Sconosciuto",
+            profilePicUrl: u.profilePicUrl || null, // ✅ usa URL fornito
+          };
+        });
         setAllUsers(usersMap);
       } catch (err) {
         console.error("Errore nel caricamento stanze o utenti:", err.response?.data || err.message);
@@ -84,19 +79,18 @@ setAllUsers(usersMap);
     channel = pusher.subscribe('rooms');
 
     channel.bind('new-message', (data) => {
-      if (!data || !data.room || !data.message) return;
+      if (!data?.room || !data.message) return;
 
       const membersIds = (data.room.members || []).map(m => (typeof m === "string" ? m : m._id));
-      if (!membersIds.map(String).includes(String(user.uid))) return;
+      if (!membersIds.includes(user.uid)) return;
 
       setRooms(prevRooms => {
         const idx = prevRooms.findIndex(r => r._id === data.room._id);
-
         const updatedRoom = {
           ...data.room,
           lastMessageText: data.message.message,
           lastMessageTimestamp: data.message.timestamp || new Date().toISOString(),
-          members: (data.room.members || []).map(m => typeof m === 'string' ? m : m._id),
+          members: membersIds,
         };
 
         if (idx !== -1) {
@@ -112,12 +106,10 @@ setAllUsers(usersMap);
     });
 
     return () => {
-      if (pusher?.connection?.state === "connected") {
+      if (channel) {
         channel.unbind_all();
         pusher.unsubscribe('rooms');
         pusher.disconnect();
-      } else if (channel) {
-        channel.unbind_all();
       }
     };
   }, [user, token]);
@@ -129,14 +121,13 @@ setAllUsers(usersMap);
     }
 
     try {
-      // Ordina i membri per evitare stanze duplicate
-      const membri = [user.uid, selectedUser._id].sort((a, b) => a.localeCompare(b));
+      const membri = [user.uid, selectedUser._id].sort();
       const roomName = selectedUser.nome || selectedUser.username || "Utente";
 
-      const res = await axios.post(
-        `${API_BASE_URL}/api/v1/rooms`,
-        { name: roomName, members: membri }
-      );
+      const res = await axios.post(`${API_BASE_URL}/api/v1/rooms`, {
+        name: roomName,
+        members: membri
+      });
 
       const newRoomId = res.data?._id || res.data?.roomId;
       if (newRoomId) {
@@ -155,25 +146,23 @@ setAllUsers(usersMap);
   if (loading) return <div className="sidebar_loading">Caricamento...</div>;
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
-  const filteredRooms = (rooms || [])
-    .filter(room => room && room.members && Array.isArray(room.members))
+  const filteredRooms = rooms
+    .filter(room => Array.isArray(room.members))
     .map(room => {
       const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
       const otherUserId = membersIds.find(id => id !== user.uid);
       const displayName = allUsers[otherUserId]?.name || room.name || "Chat";
       const avatarSrc = allUsers[otherUserId]?.profilePicUrl || null;
-      const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
+      const lastMessage = room.lastMessageText || (room.messages?.at(-1)?.message) || "";
 
       return { room, displayName, avatarSrc, lastMessage };
     })
     .filter(({ displayName }) =>
       displayName.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .sort((a, b) => {
-      const aDate = new Date(a.room.lastMessageTimestamp || 0);
-      const bDate = new Date(b.room.lastMessageTimestamp || 0);
-      return bDate - aDate;
-    });
+    .sort((a, b) =>
+      new Date(b.room.lastMessageTimestamp || 0) - new Date(a.room.lastMessageTimestamp || 0)
+    );
 
   return (
     <div className="sidebar">
