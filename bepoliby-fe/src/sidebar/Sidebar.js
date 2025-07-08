@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
 import ChatBubbleIcon from "@mui/icons-material/Chat";
@@ -15,6 +14,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import Pusher from 'pusher-js';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com";
+const PROFILE_PIC_BASE_URL = "https://bepoli.onrender.com/api/user-photo"; // Cambia se serve
 const PUSHER_KEY = "6a10fce7f61c4c88633b";
 const PUSHER_CLUSTER = "eu";
 
@@ -27,6 +27,7 @@ const Sidebar = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
 
+  // Imposta header Authorization con token JWT
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -55,7 +56,7 @@ const Sidebar = () => {
         usersRes.data.forEach(u => {
           usersMap[u._id] = {
             name: u.nome || u.username || "Sconosciuto",
-            profilePicUrl: u.profilePicUrl || null  // ✅ NON toccare, è già un URL completo
+            profilePicUrl: u.profilePicUrl || null  // Se backend ha già URL completo
           };
         });
         setAllUsers(usersMap);
@@ -68,6 +69,7 @@ const Sidebar = () => {
 
     fetchData();
 
+    // Setup Pusher
     pusher = new Pusher(PUSHER_KEY, {
       cluster: PUSHER_CLUSTER,
       authEndpoint: `${API_BASE_URL}/pusher/auth`,
@@ -151,13 +153,21 @@ const Sidebar = () => {
   if (loading) return <div className="sidebar_loading">Caricamento...</div>;
   if (!user) return <div className="sidebar_loading">Utente non autenticato</div>;
 
+  // Per ogni stanza troviamo l'altro membro e mostriamo nome + avatar
   const filteredRooms = rooms
     .filter(room => room && Array.isArray(room.members))
     .map(room => {
       const membersIds = room.members.map(m => (typeof m === "string" ? m : m._id));
       const otherUserId = membersIds.find(id => id !== user.uid);
-      const displayName = allUsers[otherUserId]?.name || room.name || "Chat";
-      const avatarSrc = allUsers[otherUserId]?.profilePicUrl || null;
+      const otherUser = allUsers[otherUserId] || {};
+
+      const displayName = otherUser.name || room.name || "Chat";
+
+      // Usa profilePicUrl già presente oppure fallback con endpoint foto profilo backend
+      const avatarSrc = otherUser.profilePicUrl
+        ? otherUser.profilePicUrl
+        : (otherUserId ? `${PROFILE_PIC_BASE_URL}/${otherUserId}` : null);
+
       const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
       return { room, displayName, avatarSrc, lastMessage };
