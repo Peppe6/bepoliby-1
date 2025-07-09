@@ -173,14 +173,18 @@ const Sidebar = () => {
 
   return (
     <div className="sidebar">
-      <div className="sidebar_header">
-        <Avatar
-          src={user?.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
-          alt={user?.nome || "Utente"}
-          sx={{ width: 40, height: 40 }}
-        />
-        <span className="sidebar_username">{user?.nome || "Utente"}</span>
-      </div>
+    <div className="sidebar_header">
+  <Avatar
+    src={
+      allUsers[user.uid]?.profilePicUrl ||
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`
+    }
+    alt={user?.nome || "Utente"}
+    sx={{ width: 40, height: 40 }}
+  />
+  <span className="sidebar_username">{user?.nome || "Utente"}</span>
+</div>
+
 
       <div className="sidebar_search">
         <div className="sidebar_search_container">
