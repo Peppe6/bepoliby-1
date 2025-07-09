@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from "react";
 import './Sidebar.css';
-import ChatBubbleIcon from "@mui/icons-material/Chat";
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import FilterTiltShiftIcon from '@mui/icons-material/FilterTiltShift';
 import SearchIcon from '@mui/icons-material/Search';
-import { Avatar, IconButton } from "@mui/material";
+import { Avatar } from "@mui/material";
 import SidebarChat from './SidebarChat';
 import axios from 'axios';
 import { useStateValue } from '../StateProvider';
@@ -177,28 +174,12 @@ const Sidebar = () => {
   return (
     <div className="sidebar">
       <div className="sidebar_header">
-        <div className="sidebar_header_left">
-          <IconButton>
-            <Avatar
-              src={user?.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
-              alt={user?.nome || "Utente"}
-            />
-          </IconButton>
-          <span>{user?.nome || "Utente"}</span>
-        </div>
-        <div className="sidebar_header_right">
-          {/* Foto profilo utente in alto a destra */}
-          <IconButton>
-            <Avatar
-              src={user?.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
-              alt={user?.nome || "Utente"}
-              sx={{ width: 32, height: 32 }}
-            />
-          </IconButton>
-          <IconButton><FilterTiltShiftIcon /></IconButton>
-          <IconButton><ChatBubbleIcon /></IconButton>
-          <IconButton><MoreVertIcon /></IconButton>
-        </div>
+        <Avatar
+          src={user?.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`}
+          alt={user?.nome || "Utente"}
+          sx={{ width: 40, height: 40 }}
+        />
+        <span className="sidebar_username">{user?.nome || "Utente"}</span>
       </div>
 
       <div className="sidebar_search">
@@ -236,5 +217,6 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
 
 
