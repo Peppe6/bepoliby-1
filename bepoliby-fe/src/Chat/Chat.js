@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -14,6 +15,7 @@ function Chat() {
   const [roomName, setRoomName] = useState("");
   const [lastSeen, setLastSeen] = useState("");
   const [roomMessages, setRoomMessages] = useState([]);
+  const [membersInfo, setMembersInfo] = useState({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [sending, setSending] = useState(false);
   const inputRef = useRef(null);
@@ -46,13 +48,10 @@ function Chat() {
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
-    console.log("👂 Mi iscrivo al canale:", `room_${roomId}`);
-
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe(`room_${roomId}`);
 
     const handleNewMessage = (data) => {
-      console.log("🔔 Messaggio ricevuto da Pusher:", data);
       if (!data || !data.message) return;
 
       const newMsg = data.message;
@@ -87,7 +86,6 @@ function Chat() {
     channel.bind("inserted", handleNewMessage);
 
     return () => {
-      console.log("🚪 Mi disiscrivo da:", `room_${roomId}`);
       channel.unbind("inserted", handleNewMessage);
       channel.unsubscribe();
       pusher.disconnect();
@@ -117,6 +115,38 @@ function Chat() {
 
     fetchRoomData();
   }, [roomId, user?.uid, apiUrl]);
+
+  // Carica info membri per le foto profilo
+  useEffect(() => {
+    const fetchMembersInfo = async () => {
+      if (!roomId || !token) return;
+
+      try {
+        const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
+        const memberIds = res.data.members;
+
+        const userResponses = await Promise.all(
+          memberIds.map(id =>
+            axios.get(`${apiUrl}/api/v1/users/${id}`).then(res => res.data)
+          )
+        );
+
+        const infoMap = {};
+        userResponses.forEach(user => {
+          infoMap[user._id] = {
+            name: user.name,
+            profilePicUrl: user.profilePicUrl
+          };
+        });
+
+        setMembersInfo(infoMap);
+      } catch (err) {
+        console.error("❌ Errore nel caricamento dei membri:", err);
+      }
+    };
+
+    fetchMembersInfo();
+  }, [roomId, token, apiUrl]);
 
   useEffect(() => {
     scrollToBottom();
@@ -192,6 +222,10 @@ function Chat() {
           const isOwnMessage = message.uid === user?.uid;
           const isValidDate = !isNaN(new Date(message.timestamp));
 
+          const sender = membersInfo[message.uid];
+          const avatarUrl = sender?.profilePicUrl ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`;
+
           return (
             <div
               key={message._id || index}
@@ -200,7 +234,7 @@ function Chat() {
               {!isOwnMessage && (
                 <Avatar
                   className="Chat_avatar"
-                  src={`https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`}
+                  src={avatarUrl}
                   alt={message.name}
                 />
               )}
