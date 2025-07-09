@@ -1,4 +1,3 @@
-
 /* Reset globale */
 * {
   margin: 0;
@@ -52,5 +51,21 @@ body, html, #root {
     flex-direction: column;
     height: 100%;
     border-radius: 0;
+  }
+
+  /* Sidebar piena larghezza e altezza limitata */
+  .sidebar {
+    flex: none !important;
+    width: 100% !important;
+    max-height: 250px; /* altezza comoda per mobile */
+    height: auto !important;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+
+  /* Chat prende il resto dello spazio */
+  .Chat {
+    flex: 1 !important;
+    height: auto !important;
   }
 }
