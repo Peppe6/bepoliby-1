@@ -5,7 +5,7 @@
   height: 100vh;
   border-right: 1px solid #ddd;
   background-color: #fafafa;
-  min-width: 280px; /* larghezza minima desktop */
+  min-width: 0; /* RIMOSSO il min-width 280px per permettere il layout mobile affiancato */
 }
 
 .sidebar_header {
@@ -126,8 +126,6 @@
   margin-bottom: 10px;
 }
 
-/* AGGIUNTO: Stili per la ricerca utenti */
-
 .sidebar_usersearch {
   padding: 10px 20px;
   border-bottom: 1px solid #ddd;
@@ -184,24 +182,16 @@
   color: #333;
 }
 
-/* MEDIA QUERY PER MOBILE */
+/* ✅ MEDIA QUERY PER MOBILE (affiancata a Chat) */
 
 @media (max-width: 768px) {
   .sidebar {
-    flex: 0.45;          /* sidebar occupa circa il 45% dello schermo */
-    min-width: auto;
-    max-width: 45vw;     /* max larghezza al 45% viewport width */
+    flex: 0 0 50%;
+    max-width: 50vw;
     height: 100vh;
-    border-right: 1px solid #ddd; /* mantieni il bordo */
-    position: relative;  /* no overlay, flusso normale */
+    border-right: 1px solid #ddd;
+    border-bottom: none;
     box-shadow: none;
-  }
-
-  /* Container chat da affiancare, modifica a seconda del nome usato */
-  .chat_container {
-    flex: 0.55; /* circa 55% per la chat */
-    max-width: 55vw;
-    height: 100vh;
     overflow-y: auto;
   }
 
@@ -218,11 +208,11 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
+    max-width: 100px;
   }
 
   .sidebar_header_right {
-    display: none; /* nascondi la parte di destra su mobile */
+    display: none;
   }
 
   .sidebar_search {
@@ -239,7 +229,7 @@
   }
 
   .sidebar_chats {
-    padding-bottom: 10px; /* evita che ultimo messaggio sia troppo a ridosso */
+    padding-bottom: 10px;
   }
 
   .sidebarChat {
@@ -247,15 +237,15 @@
   }
 
   .sidebarChat_info > h2 {
-    font-size: 16px;
-    white-space: normal; /* permettiamo wrapping titolo */
+    font-size: 15px;
+    white-space: normal;
     overflow: visible;
     text-overflow: unset;
     line-height: 1.2;
   }
 
   .sidebarChat_info > p {
-    font-size: 13px;
+    font-size: 12px;
     white-space: normal;
     overflow: visible;
     text-overflow: unset;
@@ -266,4 +256,5 @@
     padding: 8px 12px;
   }
 }
+
 
