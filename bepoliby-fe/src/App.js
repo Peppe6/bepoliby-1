@@ -3,7 +3,7 @@ import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
 import Chat from './Chat/Chat';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Avatar from "@mui/material/Avatar";
 import { useStateValue } from './StateProvider';
 import axios from "axios";
@@ -50,10 +50,27 @@ function InfoCenter() {
   );
 }
 
+function AppLayout({ fetchUsers, token, user }) {
+  const location = useLocation();
+  const isMobile = window.innerWidth <= 768;
+  const isInChat = location.pathname.startsWith("/rooms/");
+
+  return (
+    <div className={`app ${isMobile ? (isInChat ? "show-chat" : "show-sidebar") : "desktop"}`}>
+      <div className="app_body">
+        {(!isMobile || !isInChat) && <Sidebar fetchUsers={fetchUsers} />}
+        <Routes>
+          {!isInChat && <Route path="/" element={<InfoCenter />} />}
+          <Route path="/rooms/:roomId" element={<Chat token={token} user={user} />} />
+        </Routes>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [{ user, token }, dispatch] = useStateValue();
 
-  // Estrae token dall’URL e salva in sessionStorage + stato globale
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get("token");
@@ -78,7 +95,6 @@ function App() {
     }
   }, [dispatch]);
 
-  // Ripristina user/token da sessionStorage
   useEffect(() => {
     const tokenStored = sessionStorage.getItem("token");
     const userString = sessionStorage.getItem("user");
@@ -102,7 +118,6 @@ function App() {
     }
   }, [dispatch]);
 
-  // Imposta header globale Axios con token, se presente
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -112,7 +127,6 @@ function App() {
     }
   }, [token]);
 
-  // Funzione per fetchare utenti con token
   async function fetchUsers() {
     if (!token) {
       console.warn("Token mancante, impossibile fetchare utenti");
@@ -121,12 +135,10 @@ function App() {
     try {
       const api = axiosAuth(token);
       const res = await api.get("/api/v1/users");
-      // API restituisce array utenti direttamente
       return res.data || [];
     } catch (err) {
       console.error("Errore fetch utenti:", err.response?.data || err.message);
       if (err.response?.status === 401) {
-        // Token non valido/scaduto: logout
         sessionStorage.clear();
         dispatch({ type: "SET_USER", user: null, token: null });
         window.location.reload();
@@ -136,25 +148,16 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <div className="app_body">
-        <Router>
-          {user ? (
-            <>
-              <Sidebar fetchUsers={fetchUsers} />
-              <Routes>
-                <Route path="/" element={<InfoCenter />} />
-                <Route path="/rooms/:roomId" element={<Chat token={token} user={user} />} />
-              </Routes>
-            </>
-          ) : (
-            <div className="app_loading">Caricamento utente...</div>
-          )}
-        </Router>
-      </div>
-    </div>
+    <Router>
+      {user ? (
+        <AppLayout fetchUsers={fetchUsers} token={token} user={user} />
+      ) : (
+        <div className="app_loading">Caricamento utente...</div>
+      )}
+    </Router>
   );
 }
 
 export default App;
+
 
