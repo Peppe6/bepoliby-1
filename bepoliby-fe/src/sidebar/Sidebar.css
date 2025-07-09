@@ -1,3 +1,4 @@
+
 .sidebar { 
   display: flex;
   flex-direction: column;
@@ -5,6 +6,7 @@
   height: 100vh;
   border-right: 1px solid #ddd;
   background-color: #fafafa;
+  min-width: 280px; /* larghezza minima desktop */
 }
 
 .sidebar_header {
@@ -182,3 +184,73 @@
   color: #333;
 }
 
+
+/* MEDIA QUERY PER MOBILE */
+
+@media (max-width: 768px) {
+  .sidebar {
+    flex: 1; /* prendi tutto lo spazio orizzontale */
+    min-width: auto;
+    height: 100vh;
+    border-right: none;
+  }
+
+  .sidebar_header {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  .sidebar_header_left {
+    gap: 8px;
+  }
+
+  .sidebar_header_left span {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+
+  .sidebar_header_right {
+    display: none; /* nascondi la parte di destra che avevamo rimosso */
+  }
+
+  .sidebar_search {
+    padding: 8px 12px;
+  }
+
+  .sidebar_search_container {
+    height: 36px;
+    padding: 0 12px;
+  }
+
+  .sidebar_search_container > input {
+    font-size: 13px;
+  }
+
+  .sidebar_chats {
+    flex: 1;
+    background-color: white;
+    overflow-y: auto;
+    padding-bottom: 10px; /* per evitare che l'ultimo messaggio sia troppo a ridosso */
+  }
+
+  .sidebarChat {
+    padding: 10px 12px;
+  }
+
+  .sidebarChat_info > h2 {
+    font-size: 16px;
+  }
+
+  .sidebarChat_info > p {
+    font-size: 13px;
+  }
+
+  .sidebar_usersearch {
+    padding: 8px 12px;
+  }
+}
