@@ -73,6 +73,7 @@
   flex: 1;
   background-color: white;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sidebarChat {
@@ -189,17 +190,25 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    flex: 1; /* prendi tutto lo spazio orizzontale */
+    flex: 0.45;          /* sidebar occupa circa il 45% dello schermo */
     min-width: auto;
+    max-width: 45vw;     /* max larghezza al 45% viewport width */
     height: 100vh;
-    border-right: none;
+    border-right: 1px solid #ddd; /* mantieni il bordo */
+    position: relative;  /* no overlay, flusso normale */
+    box-shadow: none;
+  }
+
+  /* Se hai un contenitore chat (da affiancare) usa questa regola, altrimenti adattala */
+  .chat_container {
+    flex: 0.55; /* circa 55% per la chat */
+    max-width: 55vw;
+    height: 100vh;
+    overflow-y: auto;
   }
 
   .sidebar_header {
-    flex-direction: row;
-    justify-content: flex-start;
-    padding: 8px 12px;
-    gap: 10px;
+    padding: 10px 15px;
   }
 
   .sidebar_header_left {
@@ -215,7 +224,7 @@
   }
 
   .sidebar_header_right {
-    display: none; /* nascondi la parte di destra che avevamo rimosso */
+    display: none; /* nascondi la parte di destra su mobile */
   }
 
   .sidebar_search {
@@ -232,10 +241,7 @@
   }
 
   .sidebar_chats {
-    flex: 1;
-    background-color: white;
-    overflow-y: auto;
-    padding-bottom: 10px; /* per evitare che l'ultimo messaggio sia troppo a ridosso */
+    padding-bottom: 10px; /* evita che ultimo messaggio sia troppo a ridosso */
   }
 
   .sidebarChat {
@@ -244,10 +250,18 @@
 
   .sidebarChat_info > h2 {
     font-size: 16px;
+    white-space: normal; /* permettiamo wrapping titolo */
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.2;
   }
 
   .sidebarChat_info > p {
     font-size: 13px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    color: #666;
   }
 
   .sidebar_usersearch {
