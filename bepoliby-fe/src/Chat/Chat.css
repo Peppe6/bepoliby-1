@@ -1,3 +1,5 @@
+
+
 .Chat {
   display: flex;
   flex-direction: column;
@@ -9,7 +11,7 @@
   position: relative;
 }
 
-/* ...tutto invariato sopra... */
+/* ...altro codice invariato... */
 
 /* Responsive per mobile affiancato alla sidebar */
 @media (max-width: 768px) {
@@ -23,6 +25,23 @@
 
   .Chat_body {
     padding: 15px 10px 80px;
+    gap: 12px;
+  }
+
+  .Chat_message,
+  .Chat_receiver {
+    font-size: 14px;
+    padding: 10px 14px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    max-width: 80%;
+    word-break: break-word;
+  }
+
+  .Chat_receiver {
+    background-color: #dcf8c6;
+    align-self: flex-end;
   }
 
   .Chat_message_container,
@@ -34,11 +53,6 @@
     width: 28px;
     height: 28px;
     margin-right: 6px;
-  }
-
-  .Chat_message {
-    font-size: 14px;
-    padding: 8px 12px;
   }
 
   .Chat_name {
@@ -57,20 +71,53 @@
     font-size: 11px;
   }
 
+  /* Footer: input e bottone */
+  .Chat_footer {
+    padding: 10px 12px;
+    border-top: 1px solid #ccc;
+    background-color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .Chat_footer > form {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+  }
+
   .Chat_footer > form > input {
+    flex: 1;
+    padding: 10px 16px;
     font-size: 14px;
-    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    outline: none;
+    background-color: #f9f9f9;
   }
 
   .Chat_footer > form > button {
     padding: 8px 14px;
     font-size: 14px;
+    background-color: #4caf50;
+    border: none;
+    border-radius: 20px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
   }
 
+  .Chat_footer > form > button:hover:not(:disabled) {
+    background-color: #388e3c;
+  }
+
+  /* Emoji picker mobile */
   .EmojiPickerReact {
     bottom: 60px !important;
     right: 10px !important;
-    width: 260px !important;
+    width: 240px !important;
   }
 }
 
@@ -89,6 +136,5 @@
     font-size: 16px;
   }
 }
-
 
 
