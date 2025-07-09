@@ -45,7 +45,7 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   scroll-behavior: smooth;
 }
 
@@ -54,74 +54,63 @@
   max-width: 70%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
   word-wrap: break-word;
 }
 
-/* Messaggio ricevuto */
-.Chat_message_container.other {
-  align-self: flex-start;
-  align-items: flex-start;
-}
-
-/* Messaggio inviato */
+/* Messaggio inviato (tu) */
 .Chat_message_container.self {
-  align-self: flex-end;
+  align-self: flex-end; /* sposta a destra */
   align-items: flex-end;
 }
 
-/* Messaggio vero e proprio con bordo e colori leggeri */
+/* Messaggio ricevuto (altri) */
+.Chat_message_container.other {
+  align-self: flex-start; /* sposta a sinistra */
+  align-items: flex-start;
+}
+
+/* Rettangolo messaggio */
 .Chat_message {
   padding: 12px 18px;
   font-size: 15px;
-  line-height: 1.3;
+  line-height: 1.4;
   user-select: text;
   max-width: 100%;
-  border-radius: 12px;
-  border: 1.5px solid transparent;
-  background-color: transparent;
-  transition: background-color 0.3s ease;
+  border-radius: 18px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   word-break: break-word;
+  background-color: #e6f4ea; /* default verde chiaro per messaggi inviati */
+  color: #2c662d;
+  border: 1px solid #4caf50;
 }
 
-/* Messaggio inviato: bordo verde chiaro, testo verde scuro */
-.Chat_message_container.self .Chat_message {
-  border-color: #4caf50;
-  color: #2e7d32;
-}
-
-/* Messaggio ricevuto: bordo grigio chiaro, testo grigio scuro */
+/* Stile messaggi ricevuti */
 .Chat_message_container.other .Chat_message {
-  border-color: #9e9e9e;
-  color: #424242;
+  background-color: #f1f0f0;
+  color: #444;
+  border: 1px solid #ccc;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
 
-/* Hover effetto leggero */
-.Chat_message_container.self .Chat_message:hover {
-  background-color: rgba(76, 175, 80, 0.1);
-}
-
-.Chat_message_container.other .Chat_message:hover {
-  background-color: rgba(158, 158, 158, 0.1);
-}
-
-/* Nome utente piccolo sopra il messaggio */
+/* Nome utente sopra messaggio */
 .Chat_name {
   font-weight: 600;
   font-size: 11px;
   color: #555;
+  margin-bottom: 3px;
   user-select: none;
 }
 
-/* Timestamp sotto il messaggio */
+/* Timestamp sotto messaggio */
 .Chat_timestamp {
   font-size: 10px;
   color: #999;
+  margin-top: 4px;
   user-select: none;
   align-self: flex-end;
 }
 
-/* Avatar accanto al messaggio ricevuto */
+/* Avatar (se usato accanto messaggi ricevuti) */
 .Chat_avatar {
   width: 36px;
   height: 36px;
@@ -146,14 +135,14 @@
   z-index: 10;
 }
 
-/* Form per input + bottone */
+/* Form input + bottone */
 .Chat_footer form {
   flex: 1;
   display: flex;
   gap: 12px;
 }
 
-/* Campo input testo */
+/* Input testo */
 .Chat_footer input[type="text"] {
   flex: 1;
   padding: 12px 20px;
@@ -237,6 +226,7 @@
     height: 30px;
   }
 }
+
 
   
 
