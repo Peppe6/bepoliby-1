@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
-import { Avatar, IconButton } from '@mui/material';
+import { IconButton } from '@mui/material';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import Pusher from 'pusher-js';
@@ -14,7 +15,6 @@ function Chat() {
   const [roomName, setRoomName] = useState("");
   const [lastSeen, setLastSeen] = useState("");
   const [roomMessages, setRoomMessages] = useState([]);
-  const [membersInfo, setMembersInfo] = useState({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [sending, setSending] = useState(false);
   const inputRef = useRef(null);
@@ -23,21 +23,18 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
-  // Scrolla in basso dopo ogni aggiornamento messaggi
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
 
-  // Aggiunge emoji al messaggio e chiude picker
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
     setShowEmojiPicker(false);
     inputRef.current?.focus();
   };
 
-  // Configura header Authorization con token JWT
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -46,7 +43,7 @@ function Chat() {
     }
   }, [token]);
 
-  // Sottoscrizione Pusher per messaggi in tempo reale
+  // Realtime listener con Pusher
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
@@ -67,7 +64,6 @@ function Chat() {
 
         if (alreadyExists) return prev;
 
-        // Sostituisce messaggio temporaneo con messaggio confermato dal server
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -95,7 +91,7 @@ function Chat() {
     };
   }, [roomId, user?.uid]);
 
-  // Carica info stanza e messaggi
+  // Carica dati della stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -103,8 +99,10 @@ function Chat() {
       try {
         const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         setRoomName(res.data.name || "Chat");
+
         const messages = res.data.messages || [];
         setRoomMessages(messages);
+
         const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
@@ -117,36 +115,10 @@ function Chat() {
     fetchRoomData();
   }, [roomId, user?.uid, apiUrl]);
 
-  // Recupera info membri (immagini profilo)
-  useEffect(() => {
-    const fetchMembersInfo = async () => {
-      if (!roomId || !token) return;
-
-      try {
-        const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
-        const memberIds = res.data.members || [];
-
-        const infoMap = {};
-        memberIds.forEach(uid => {
-          infoMap[uid] = {
-            profilePicUrl: `${apiUrl}/api/v1/users/${uid}/profile-pic`,
-          };
-        });
-
-        setMembersInfo(infoMap);
-      } catch (err) {
-        console.error("❌ Errore nel caricamento dei membri:", err);
-      }
-    };
-
-    fetchMembersInfo();
-  }, [roomId, token, apiUrl]);
-
   useEffect(() => {
     scrollToBottom();
   }, [roomMessages]);
 
-  // Invio messaggio al backend + aggiornamento locale (optimistic UI)
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !user?.uid || !roomId || sending) return;
@@ -165,12 +137,7 @@ function Chat() {
     setInput("");
 
     try {
-      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, {
-        message: newMessage.message,
-        name: newMessage.name,
-        timestamp: newMessage.timestamp,
-        uid: newMessage.uid
-      });
+      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
@@ -196,10 +163,7 @@ function Chat() {
   return (
     <div className='Chat' key={roomId}>
       <div className='Chat_header'>
-        <Avatar
-          src={`https://ui-avatars.com/api/?name=${encodeURIComponent(roomName)}&background=random&color=fff&size=128`}
-          alt={roomName}
-        />
+        {/* Rimuovo avatar stanza */}
         <div className='Chat_header_info'>
           <h3>{roomName}</h3>
           <p>
@@ -221,8 +185,6 @@ function Chat() {
         {roomMessages.map((message, index) => {
           const isOwnMessage = message.uid === user?.uid;
           const isValidDate = !isNaN(new Date(message.timestamp));
-          const avatarUrl = membersInfo[message.uid]?.profilePicUrl ||
-            `${apiUrl}/api/v1/users/${message.uid}/profile-pic`;
 
           return (
             <div
@@ -230,13 +192,7 @@ function Chat() {
               className={`Chat_message_container ${isOwnMessage ? "Chat_receiver_container" : ""}`}
             >
               <div className="Chat_message_row">
-                {!isOwnMessage && (
-                  <Avatar
-                    className="Chat_avatar"
-                    src={avatarUrl}
-                    alt={message.name}
-                  />
-                )}
+                {/* Avatar rimosso */}
                 <div>
                   <span className="Chat_name">{message.name}</span>
                   <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
