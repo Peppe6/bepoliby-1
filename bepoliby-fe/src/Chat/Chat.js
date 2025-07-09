@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { InsertEmoticon } from "@mui/icons-material";
 import "./Chat.css";
@@ -116,7 +115,7 @@ function Chat() {
     fetchRoomData();
   }, [roomId, user?.uid, apiUrl]);
 
-  // Carica info membri per le foto profilo
+  // Costruisce mappa membri -> URL immagine
   useEffect(() => {
     const fetchMembersInfo = async () => {
       if (!roomId || !token) return;
@@ -125,17 +124,10 @@ function Chat() {
         const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         const memberIds = res.data.members;
 
-        const userResponses = await Promise.all(
-          memberIds.map(id =>
-            axios.get(`${apiUrl}/api/v1/users/${id}`).then(res => res.data)
-          )
-        );
-
         const infoMap = {};
-        userResponses.forEach(user => {
-          infoMap[user._id] = {
-            name: user.name,
-            profilePicUrl: user.profilePicUrl
+        memberIds.forEach(uid => {
+          infoMap[uid] = {
+            profilePicUrl: `${apiUrl}/api/v1/users/${uid}/profile-pic`,
           };
         });
 
@@ -221,34 +213,36 @@ function Chat() {
         {roomMessages.map((message, index) => {
           const isOwnMessage = message.uid === user?.uid;
           const isValidDate = !isNaN(new Date(message.timestamp));
-
-          const sender = membersInfo[message.uid];
-          const avatarUrl = sender?.profilePicUrl ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(message.name)}&background=random&color=fff&size=64`;
+          const avatarUrl = membersInfo[message.uid]?.profilePicUrl ||
+            `${apiUrl}/api/v1/users/${message.uid}/profile-pic`;
 
           return (
             <div
               key={message._id || index}
               className={`Chat_message_container ${isOwnMessage ? "Chat_receiver_container" : ""}`}
             >
-              {!isOwnMessage && (
-                <Avatar
-                  className="Chat_avatar"
-                  src={avatarUrl}
-                  alt={message.name}
-                />
-              )}
-              <span className="Chat_name">{message.name}</span>
-              <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
-                {message.message}
-                <span className="Chat_timestamp">
-                  {isValidDate
-                    ? new Date(message.timestamp).toLocaleString("it-IT", {
-                        day: "2-digit", month: "2-digit", year: "numeric",
-                        hour: "2-digit", minute: "2-digit", second: "2-digit"
-                      })
-                    : "Data non valida"}
-                </span>
+              <div className="Chat_message_row">
+                {!isOwnMessage && (
+                  <Avatar
+                    className="Chat_avatar"
+                    src={avatarUrl}
+                    alt={message.name}
+                  />
+                )}
+                <div>
+                  <span className="Chat_name">{message.name}</span>
+                  <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
+                    {message.message}
+                    <span className="Chat_timestamp">
+                      {isValidDate
+                        ? new Date(message.timestamp).toLocaleString("it-IT", {
+                            day: "2-digit", month: "2-digit", year: "numeric",
+                            hour: "2-digit", minute: "2-digit", second: "2-digit"
+                          })
+                        : "Data non valida"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -285,6 +279,7 @@ function Chat() {
 }
 
 export default Chat;
+
 
 
 
