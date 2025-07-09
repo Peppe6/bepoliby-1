@@ -9,6 +9,7 @@
   position: relative;
 }
 
+/* Header */
 .Chat_header {
   padding: 20px;
   display: flex;
@@ -36,6 +37,7 @@
   font-size: 13px;
 }
 
+/* Body */
 .Chat_body {
   flex: 1;
   overflow-y: auto;
@@ -61,6 +63,7 @@
   border-radius: 4px;
 }
 
+/* Messages */
 .Chat_message_container {
   display: flex;
   flex-direction: column;
@@ -76,7 +79,6 @@
   margin-left: auto;
 }
 
-/* NEW: Riga contenente avatar + messaggio */
 .Chat_message_row {
   display: flex;
   align-items: flex-end;
@@ -124,6 +126,7 @@
   opacity: 0.7;
 }
 
+/* Footer */
 .Chat_footer {
   display: flex;
   justify-content: space-between;
@@ -192,7 +195,7 @@
   color: #4caf50;
 }
 
-/* Emoji picker sovrapposto alla chat */
+/* Emoji picker */
 .EmojiPickerReact {
   position: absolute !important;
   bottom: 70px;
@@ -200,7 +203,7 @@
   z-index: 999;
 }
 
-/* ERRORE STANZA O UTENTE */
+/* Error */
 .Chat_error {
   padding: 2rem;
   color: #b00020;
@@ -211,4 +214,84 @@
   margin: 1rem;
   text-align: center;
 }
+
+
+/* MEDIA QUERIES PER MOBILE E TABLET */
+
+@media (max-width: 768px) {
+  .Chat {
+    flex: 1 1 auto;
+    height: 100vh;
+  }
+
+  .Chat_body {
+    padding: 15px 10px 80px;
+  }
+
+  .Chat_message_container,
+  .Chat_receiver_container {
+    max-width: 85%; /* Più largo per il mobile */
+  }
+
+  .Chat_avatar {
+    width: 28px;
+    height: 28px;
+    margin-right: 6px;
+  }
+
+  .Chat_message {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .Chat_name {
+    font-size: 9px;
+  }
+
+  .Chat_timestamp {
+    font-size: 9px;
+  }
+
+  .Chat_header_info > h3 {
+    font-size: 18px;
+  }
+
+  .Chat_header_info > p {
+    font-size: 11px;
+  }
+
+  .Chat_footer > form > input {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  .Chat_footer > form > button {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  /* Emoji picker più piccolo e con posizione più corretta */
+  .EmojiPickerReact {
+    bottom: 60px !important;
+    right: 10px !important;
+    width: 260px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .Chat_message_container,
+  .Chat_receiver_container {
+    max-width: 95%;
+  }
+
+  .Chat_avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .Chat_header_info > h3 {
+    font-size: 16px;
+  }
+}
+
 
