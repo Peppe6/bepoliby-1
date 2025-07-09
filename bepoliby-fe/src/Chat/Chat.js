@@ -23,18 +23,21 @@ function Chat() {
 
   const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:9000';
 
+  // Scrolla in basso dopo ogni aggiornamento messaggi
   const scrollToBottom = () => {
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
 
+  // Aggiunge emoji al messaggio e chiude picker
   const onEmojiClick = (emojiData) => {
     setInput(prev => prev + emojiData.emoji);
     setShowEmojiPicker(false);
     inputRef.current?.focus();
   };
 
+  // Configura header Authorization con token JWT
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -43,7 +46,7 @@ function Chat() {
     }
   }, [token]);
 
-  // Realtime listener con Pusher
+  // Sottoscrizione Pusher per messaggi in tempo reale
   useEffect(() => {
     if (!roomId || !user?.uid) return;
 
@@ -64,6 +67,7 @@ function Chat() {
 
         if (alreadyExists) return prev;
 
+        // Sostituisce messaggio temporaneo con messaggio confermato dal server
         const tempIndex = prev.findIndex(m =>
           m._id?.startsWith('temp-') &&
           m.message === newMsg.message &&
@@ -91,7 +95,7 @@ function Chat() {
     };
   }, [roomId, user?.uid]);
 
-  // Carica dati della stanza e messaggi
+  // Carica info stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
       if (!roomId || !user?.uid) return;
@@ -99,10 +103,8 @@ function Chat() {
       try {
         const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
         setRoomName(res.data.name || "Chat");
-
         const messages = res.data.messages || [];
         setRoomMessages(messages);
-
         const lastMsg = messages.at(-1);
         setLastSeen(lastMsg?.timestamp || null);
       } catch (err) {
@@ -115,14 +117,14 @@ function Chat() {
     fetchRoomData();
   }, [roomId, user?.uid, apiUrl]);
 
-  // Costruisce mappa membri -> URL immagine
+  // Recupera info membri (immagini profilo)
   useEffect(() => {
     const fetchMembersInfo = async () => {
       if (!roomId || !token) return;
 
       try {
         const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
-        const memberIds = res.data.members;
+        const memberIds = res.data.members || [];
 
         const infoMap = {};
         memberIds.forEach(uid => {
@@ -144,6 +146,7 @@ function Chat() {
     scrollToBottom();
   }, [roomMessages]);
 
+  // Invio messaggio al backend + aggiornamento locale (optimistic UI)
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || !user?.uid || !roomId || sending) return;
@@ -162,7 +165,12 @@ function Chat() {
     setInput("");
 
     try {
-      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, newMessage);
+      await axios.post(`${apiUrl}/api/v1/rooms/${roomId}/messages`, {
+        message: newMessage.message,
+        name: newMessage.name,
+        timestamp: newMessage.timestamp,
+        uid: newMessage.uid
+      });
     } catch (error) {
       console.error("❌ Errore nell'invio del messaggio:", error);
       setRoomMessages(prev => prev.filter(msg => msg._id !== tempId));
