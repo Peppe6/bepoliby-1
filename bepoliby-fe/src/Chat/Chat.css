@@ -1,5 +1,3 @@
-
-
 .Chat {
   display: flex;
   flex-direction: column;
@@ -11,16 +9,29 @@
   position: relative;
 }
 
-/* ...altro codice invariato... */
-
 /* Responsive per mobile affiancato alla sidebar */
 @media (max-width: 768px) {
+  /* Default chat a 50% larghezza */
   .Chat {
     flex: 0 0 50%;
     max-width: 50vw;
     height: 100vh;
     min-height: 0;
     overflow-y: auto;
+  }
+
+  /* Nascondi chat se NON è attivo lo stato show-chat */
+  .app:not(.show-chat) .Chat {
+    display: none;
+  }
+
+  /* Se è attivo show-chat, mostra chat in full width */
+  .app.show-chat .Chat {
+    display: flex;
+    flex: none;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
   }
 
   .Chat_body {
@@ -121,6 +132,7 @@
   }
 }
 
+/* Media query per schermi piccoli */
 @media (max-width: 400px) {
   .Chat_message_container,
   .Chat_receiver_container {
@@ -136,5 +148,14 @@
     font-size: 16px;
   }
 }
+
+/* Desktop: la chat è sempre visibile a fianco della sidebar */
+.app.desktop .Chat {
+  display: flex !important;
+  flex: 0.65 !important;
+  max-width: none !important;
+  height: 100vh !important;
+}
+
 
 
