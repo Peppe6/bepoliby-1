@@ -1,5 +1,4 @@
-
-  /* Container principale chat */
+/* Container principale chat */
 .Chat {
   flex: 1;
   display: flex;
@@ -52,7 +51,6 @@
 .Chat_message_container {
   display: flex;
   flex-direction: column;
-  max-width: 70%;
   margin-bottom: 12px;
 }
 
@@ -80,26 +78,37 @@
   padding: 12px 16px;
   border-radius: 12px;
   font-size: 15px;
-  line-height: 1.4;
+  line-height: 1.5;
   background-color: #f1f0f0;
   color: #222;
   word-break: break-word;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
+  max-width: 100%;
 }
 
+/* Messaggi propri (inviati) */
 .Chat_receiver {
   background-color: #dcf8c6;
   color: #000;
 }
 
-/* Timestamp */
+/* Timestamp sotto al messaggio, separato */
 .Chat_timestamp {
   font-size: 10px;
   color: #888;
-  margin-top: 4px;
+  margin-top: 6px;
   align-self: flex-end;
   user-select: none;
+}
+
+/* Avatar (se usato) */
+.Chat_avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
 }
 
 /* Footer */
@@ -166,17 +175,9 @@
   z-index: 10;
 }
 
-/* Avatar (se riattivato) */
-.Chat_avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
 /* Stato caricamento / errore */
-.Chat_loading, .Chat_error {
+.Chat_loading,
+.Chat_error {
   padding: 30px;
   text-align: center;
   font-size: 16px;
@@ -186,7 +187,26 @@
   color: #b00020;
 }
 
-/* ✅ Responsive: Mobile */
+/* ✅ Responsive desktop */
+@media (min-width: 769px) {
+  .Chat_message_container {
+    max-width: 480px;
+  }
+
+  .Chat_message {
+    max-width: 100%;
+    padding: 14px 18px;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .Chat_timestamp {
+    margin-top: 8px;
+    font-size: 11px;
+  }
+}
+
+/* ✅ Responsive mobile */
 @media (max-width: 768px) {
   .Chat {
     width: 100vw;
@@ -215,6 +235,7 @@
     height: 30px;
   }
 }
+
 
 
 
