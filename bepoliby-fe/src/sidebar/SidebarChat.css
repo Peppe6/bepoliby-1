@@ -1,58 +1,65 @@
+/* 🌐 Stile base per tutti i dispositivi */
+.sidebarChat {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  width: 100%;
+  background-color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  border-bottom: none;
+  margin: 4px 0;
+  border-radius: 10px;
+  box-shadow: none;
+}
 
+.sidebarChat:hover {
+  background-color: #f5f5f5;
+}
+
+.sidebarChat > .MuiAvatar-root {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+
+.sidebarChat_info {
+  margin-left: 14px;
+  flex: 1;
+  overflow: hidden;
+  border-bottom: none;
+}
+
+.sidebarChat_info > h2 {
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  margin: 0 0 4px 0;
+  border-bottom: none;
+}
+
+.sidebarChat_info > p {
+  font-size: 14px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+  border-bottom: none;
+}
+
+.sidebarChat_selected {
+  border-left: 4px solid #4caf50;
+  background-color: #e8f5e9;
+  border-radius: 10px;
+}
+
+/* 📱 Mobile override */
 @media screen and (max-width: 768px) {
   .sidebarChat {
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    width: 100%;
     min-width: 100%;
-    background-color: white;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    border-bottom: none; /* ✅ linea rimossa */
-    margin: 4px 0;
-    border-radius: 10px;
-  }
-
-  .sidebarChat:hover {
-    background-color: #f5f5f5;
-  }
-
-  .sidebarChat > .MuiAvatar-root {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
-  }
-
-  .sidebarChat_info {
-    margin-left: 14px;
-    flex: 1;
-    overflow: hidden;
-    border-bottom: none; /* ✅ sicurezza extra */
-  }
-
-  .sidebarChat_info > h2 {
-    font-size: 17px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.3;
-    margin: 0 0 4px 0;
-    border-bottom: none; /* ✅ rimuove linea sotto nome */
-  }
-
-  .sidebarChat_info > p {
-    font-size: 14px;
-    color: #555;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin: 0;
-    border-bottom: none; /* ✅ rimuove linea sotto messaggio */
-  }
-
-  .sidebarChat_selected {
-    border-left: 4px solid #4caf50;
-    background-color: #e8f5e9;
   }
 }
+
