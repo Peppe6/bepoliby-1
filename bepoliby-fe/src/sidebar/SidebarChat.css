@@ -6,9 +6,9 @@
     width: 100%;
     min-width: 100%;
     background-color: white;
-    border-bottom: 1px solid #eee;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    border-bottom: none; /* ✅ linea rimossa */
   }
 
   .sidebarChat:hover {
