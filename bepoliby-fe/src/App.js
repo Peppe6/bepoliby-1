@@ -1,3 +1,4 @@
+
 // FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
@@ -71,6 +72,7 @@ function AppLayout({ fetchUsers, token, user }) {
 function App() {
   const [{ user, token }, dispatch] = useStateValue();
 
+  // 1) Se c'è il token in URL, decodificalo e salvalo in sessionStorage + stato globale
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const tokenFromUrl = urlParams.get("token");
@@ -82,6 +84,10 @@ function App() {
       if (id && (nome || username)) {
         sessionStorage.setItem("token", tokenFromUrl);
         sessionStorage.setItem("user", JSON.stringify({ uid: id, nome, username }));
+
+        // Salvo anche in localStorage come backup per iOS Safari
+        localStorage.setItem("tokenBackup", tokenFromUrl);
+        localStorage.setItem("userBackup", JSON.stringify({ uid: id, nome, username }));
 
         dispatch({
           type: "SET_USER",
@@ -95,13 +101,14 @@ function App() {
     }
   }, [dispatch]);
 
+  // 2) Carica dati da sessionStorage o fallback da localStorage (per iOS Safari)
   useEffect(() => {
-    const tokenStored = sessionStorage.getItem("token");
-    const userString = sessionStorage.getItem("user");
+    const tokenSession = sessionStorage.getItem("token");
+    const userSession = sessionStorage.getItem("user");
 
-    if (tokenStored && userString) {
+    if (tokenSession && userSession) {
       try {
-        const userData = JSON.parse(userString);
+        const userData = JSON.parse(userSession);
         dispatch({
           type: "SET_USER",
           user: {
@@ -109,15 +116,43 @@ function App() {
             nome: userData.nome,
             username: userData.username
           },
-          token: tokenStored
+          token: tokenSession
         });
         console.log("🟢 Utente caricato da sessionStorage:", userData);
       } catch (e) {
         console.warn("⚠️ Errore parsing user in sessionStorage", e);
       }
+      return;
+    }
+
+    // fallback da localStorage se sessionStorage è vuoto (iOS Safari workaround)
+    const tokenBackup = localStorage.getItem("tokenBackup");
+    const userBackup = localStorage.getItem("userBackup");
+
+    if (tokenBackup && userBackup) {
+      try {
+        const userData = JSON.parse(userBackup);
+        // Copia i dati nel sessionStorage per mantenere coerenza con il resto dell’app
+        sessionStorage.setItem("token", tokenBackup);
+        sessionStorage.setItem("user", userBackup);
+
+        dispatch({
+          type: "SET_USER",
+          user: {
+            uid: userData.uid || userData.id,
+            nome: userData.nome,
+            username: userData.username
+          },
+          token: tokenBackup
+        });
+        console.log("🟡 Utente caricato da localStorage (fallback) e copiato in sessionStorage:", userData);
+      } catch (e) {
+        console.warn("⚠️ Errore parsing user in localStorage", e);
+      }
     }
   }, [dispatch]);
 
+  // 3) Configura axios con token, abilita withCredentials se serve
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -140,6 +175,8 @@ function App() {
       console.error("Errore fetch utenti:", err.response?.data || err.message);
       if (err.response?.status === 401) {
         sessionStorage.clear();
+        localStorage.removeItem("tokenBackup");
+        localStorage.removeItem("userBackup");
         dispatch({ type: "SET_USER", user: null, token: null });
         window.location.reload();
       }
