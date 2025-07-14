@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
+import fotoprofilo from './fotoprofilo.png';  // immagine di default
 
 const API_SEARCH_URL = `${process.env.REACT_APP_API_URL || "https://bepoliby-1.onrender.com"}/api/v1/users/search`;
 const LIMIT = 10;
@@ -86,7 +87,8 @@ export default function UserSearch({ currentUserId, onSelect }) {
             {results.map(user => {
               const key = user._id;
               const name = user.nome || user.username || "Utente";
-              const avatarUrl = user.profilePicUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+
+              const avatarUrl = user.profilePicUrl || fotoprofilo;
 
               return (
                 <div
@@ -135,6 +137,8 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
+
 
 
 
