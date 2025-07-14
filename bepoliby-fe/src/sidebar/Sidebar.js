@@ -155,6 +155,7 @@ const Sidebar = () => {
 
       const displayName = otherUser.name || room.name || "Chat";
 
+      // Percorso immagine di default in public/fotoprofilo.png
       const avatarSrc = otherUser.profilePicUrl || "/fotoprofilo.png";
 
       const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
