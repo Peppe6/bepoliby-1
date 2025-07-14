@@ -155,8 +155,7 @@ const Sidebar = () => {
 
       const displayName = otherUser.name || room.name || "Chat";
 
-      const avatarSrc = otherUser.profilePicUrl ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=random`;
+      const avatarSrc = otherUser.profilePicUrl || "/fotoprofilo.png";
 
       const lastMessage = room.lastMessageText || (room.messages?.length && room.messages.at(-1)?.message) || "";
 
@@ -173,18 +172,15 @@ const Sidebar = () => {
 
   return (
     <div className="sidebar">
-    <div className="sidebar_header">
-  <Avatar
-    src={
-      allUsers[user.uid]?.profilePicUrl ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.nome || "Utente")}`
-    }
-    alt={user?.nome || "Utente"}
-    sx={{ width: 40, height: 40 }}
-  />
-  <span className="sidebar_username">{user?.nome || "Utente"}</span>
-</div>
-
+      <div className="sidebar_header">
+        <Avatar
+          src={allUsers[user.uid]?.profilePicUrl || "/fotoprofilo.png"}
+          alt={user?.nome || "Utente"}
+          sx={{ width: 40, height: 40 }}
+          onError={(e) => { e.currentTarget.src = "/fotoprofilo.png"; }}
+        />
+        <span className="sidebar_username">{user?.nome || "Utente"}</span>
+      </div>
 
       <div className="sidebar_search">
         <div className="sidebar_search_container">
