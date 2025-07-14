@@ -12,6 +12,8 @@ export default function UserSearch({ currentUserId, onSelect }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // Stato per tracciare quali avatar hanno avuto errore
+  const [avatarErrors, setAvatarErrors] = useState({});
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -67,6 +69,11 @@ export default function UserSearch({ currentUserId, onSelect }) {
     setPage(prev => prev + 1);
   };
 
+  // Funzione per gestire errore caricamento avatar di un utente specifico
+  const onAvatarError = (userId) => {
+    setAvatarErrors(prev => ({ ...prev, [userId]: true }));
+  };
+
   return (
     <div className="user-search">
       <input
@@ -88,8 +95,10 @@ export default function UserSearch({ currentUserId, onSelect }) {
               const key = user._id;
               const name = user.nome || user.username || "Utente";
 
-              // Usa immagine di default da public/images/fotoprofilo.png
-              const avatarUrl = user.profilePicUrl || '/images/fotoprofilo.png';
+              // Controlla se c'è errore nell'avatar di questo utente
+              const avatarHasError = avatarErrors[key];
+              // Usa immagine di default se avatar assente o errore
+              const avatarUrl = (!user.profilePicUrl || avatarHasError) ? '/images/fotoprofilo.png' : user.profilePicUrl;
 
               return (
                 <div
@@ -118,13 +127,11 @@ export default function UserSearch({ currentUserId, onSelect }) {
                     src={avatarUrl}
                     alt={`${name} avatar`}
                     sx={{ width: 32, height: 32, marginRight: 1 }}
-                    imgProps={{
-                      onError: (e) => {
-                        e.currentTarget.onerror = null; // evita loop infinito
-                        e.currentTarget.src = '/images/fotoprofilo.png';
-                      }
-                    }}
-                  />
+                    onError={() => onAvatarError(key)}
+                  >
+                    {/* Mostra lettera solo se avatar mancante o errore */}
+                    {(!user.profilePicUrl || avatarHasError) && (name[0] || "U").toUpperCase()}
+                  </Avatar>
                   <strong>{name}</strong>
                 </div>
               );
@@ -142,7 +149,6 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
-
 
 
 
