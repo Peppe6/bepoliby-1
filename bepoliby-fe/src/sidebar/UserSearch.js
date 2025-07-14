@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
@@ -117,9 +118,13 @@ export default function UserSearch({ currentUserId, onSelect }) {
                     src={avatarUrl}
                     alt={`${name} avatar`}
                     sx={{ width: 32, height: 32, marginRight: 1 }}
-                  >
-                    {!user.profilePicUrl && (name[0] || "U").toUpperCase()}
-                  </Avatar>
+                    imgProps={{
+                      onError: (e) => {
+                        e.currentTarget.onerror = null; // evita loop infinito
+                        e.currentTarget.src = '/images/fotoprofilo.png';
+                      }
+                    }}
+                  />
                   <strong>{name}</strong>
                 </div>
               );
