@@ -45,7 +45,7 @@ function Chat() {
 
   // Realtime listener con Pusher
   useEffect(() => {
-    if (!roomId || !user?.uid) return;
+    if (!roomId || !user?.uid || !token) return;
 
     const pusher = new Pusher('6a10fce7f61c4c88633b', { cluster: 'eu' });
     const channel = pusher.subscribe(`room_${roomId}`);
@@ -89,12 +89,12 @@ function Chat() {
       channel.unsubscribe();
       pusher.disconnect();
     };
-  }, [roomId, user?.uid]);
+  }, [roomId, user?.uid, token]);
 
   // Carica dati della stanza e messaggi
   useEffect(() => {
     const fetchRoomData = async () => {
-      if (!roomId || !user?.uid) return;
+      if (!roomId || !user?.uid || !token) return;
 
       try {
         const res = await axios.get(`${apiUrl}/api/v1/rooms/${roomId}`);
@@ -113,7 +113,7 @@ function Chat() {
     };
 
     fetchRoomData();
-  }, [roomId, user?.uid, apiUrl]);
+  }, [roomId, user?.uid, token, apiUrl]);
 
   useEffect(() => {
     scrollToBottom();
@@ -147,7 +147,7 @@ function Chat() {
     }
   };
 
-  if (!user) {
+  if (!user || !token) {
     return <div className="Chat_loading">Caricamento dati utente...</div>;
   }
 
@@ -163,7 +163,6 @@ function Chat() {
   return (
     <div className='Chat' key={roomId}>
       <div className='Chat_header'>
-        {/* Rimuovo avatar stanza */}
         <div className='Chat_header_info'>
           <h3>{roomName}</h3>
           <p>
@@ -192,7 +191,6 @@ function Chat() {
               className={`Chat_message_container ${isOwnMessage ? "Chat_receiver_container" : ""}`}
             >
               <div className="Chat_message_row">
-                {/* Avatar rimosso */}
                 <div>
                   <span className="Chat_name">{message.name}</span>
                   <div className={`Chat_message ${isOwnMessage ? "Chat_receiver" : ""}`}>
