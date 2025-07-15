@@ -1,5 +1,4 @@
 
-// FILE: App.js
 import React, { useEffect } from "react";
 import './App.css';
 import Sidebar from './sidebar/Sidebar';
@@ -96,7 +95,7 @@ function App() {
         });
 
         window.history.replaceState(null, "", window.location.pathname);
-        console.log("✅ Token da URL salvato e utente impostato", { id, nome, username });
+        console.log(" Token da URL salvato e utente impostato", { id, nome, username });
       }
     }
   }, [dispatch]);
@@ -118,9 +117,9 @@ function App() {
           },
           token: tokenSession
         });
-        console.log("🟢 Utente caricato da sessionStorage:", userData);
+        console.log(" Utente caricato da sessionStorage:", userData);
       } catch (e) {
-        console.warn("⚠️ Errore parsing user in sessionStorage", e);
+        console.warn("Errore parsing user in sessionStorage", e);
       }
       return;
     }
@@ -145,9 +144,9 @@ function App() {
           },
           token: tokenBackup
         });
-        console.log("🟡 Utente caricato da localStorage (fallback) e copiato in sessionStorage:", userData);
+        console.log(" Utente caricato da localStorage (fallback) e copiato in sessionStorage:", userData);
       } catch (e) {
-        console.warn("⚠️ Errore parsing user in localStorage", e);
+        console.warn(" Errore parsing user in localStorage", e);
       }
     }
   }, [dispatch]);
