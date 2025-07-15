@@ -7,7 +7,7 @@ function verifyToken(req, res, next) {
     return res.status(401).json({ message: "Token mancante" });
   }
 
-  // L’header dovrebbe essere del tipo: "Bearer tokenqui"
+ 
   const parts = authHeader.split(' ');
   if (parts.length !== 2 || parts[0] !== 'Bearer') {
     return res.status(401).json({ message: "Formato token non valido" });
@@ -16,7 +16,7 @@ function verifyToken(req, res, next) {
   const token = parts[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Qui definisci i dati utente in req.user per usarli nelle rotte
+    / dati utente in req.user per usarli nelle rotte
     req.user = {
       uid: decoded.id,
       nome: decoded.nome,
