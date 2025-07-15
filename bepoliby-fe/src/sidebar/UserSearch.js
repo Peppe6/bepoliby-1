@@ -29,12 +29,13 @@ export default function UserSearch({ currentUserId, onSelect }) {
         });
 
         const data = await res.json();
-        const filtered = data.results.filter(u => u._id !== currentUserId);
+
+        const processedResults = data.results.filter(u => u._id !== currentUserId);
 
         if (page === 1) {
-          setResults(filtered);
+          setResults(processedResults);
         } else {
-          setResults(prev => [...prev, ...filtered]);
+          setResults(prev => [...prev, ...processedResults]);
         }
 
         setHasMore(data.results.length === LIMIT);
@@ -82,13 +83,14 @@ export default function UserSearch({ currentUserId, onSelect }) {
         {results.length > 0 ? (
           <>
             {results.map(user => {
+              const key = user._id;
               const name = user.nome || user.username || "Utente";
               const avatarUrl = user.profilePicUrl || '/fotoprofilo.png';
 
               return (
                 <div
-                  key={user._id}
-                  className="user-result flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer rounded"
+                  key={key}
+                  className="user-result"
                   tabIndex={0}
                   onClick={() => {
                     onSelect(user);
@@ -111,7 +113,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
                   <Avatar
                     src={avatarUrl}
                     alt={`${name} avatar`}
-                    sx={{ width: 40, height: 40 }}
+                    sx={{ width: 32, height: 32, marginRight: 8 }}
                     imgProps={{
                       onError: (e) => {
                         e.currentTarget.onerror = null;
@@ -136,6 +138,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
 
 
 
