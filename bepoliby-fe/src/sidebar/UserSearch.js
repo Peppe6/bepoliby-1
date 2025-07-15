@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import './UserSearch.css';
 import { Avatar } from '@mui/material';
@@ -30,13 +29,12 @@ export default function UserSearch({ currentUserId, onSelect }) {
         });
 
         const data = await res.json();
-
-        const processedResults = data.results.filter(u => u._id !== currentUserId);
+        const filtered = data.results.filter(u => u._id !== currentUserId);
 
         if (page === 1) {
-          setResults(processedResults);
+          setResults(filtered);
         } else {
-          setResults(prev => [...prev, ...processedResults]);
+          setResults(prev => [...prev, ...filtered]);
         }
 
         setHasMore(data.results.length === LIMIT);
@@ -84,16 +82,13 @@ export default function UserSearch({ currentUserId, onSelect }) {
         {results.length > 0 ? (
           <>
             {results.map(user => {
-              const key = user._id;
               const name = user.nome || user.username || "Utente";
-
-              // Immagine profilo o default (omino)
               const avatarUrl = user.profilePicUrl || '/fotoprofilo.png';
 
               return (
                 <div
-                  key={key}
-                  className="user-result"
+                  key={user._id}
+                  className="user-result flex items-center gap-2 p-2 hover:bg-gray-100 cursor-pointer rounded"
                   tabIndex={0}
                   onClick={() => {
                     onSelect(user);
@@ -116,11 +111,11 @@ export default function UserSearch({ currentUserId, onSelect }) {
                   <Avatar
                     src={avatarUrl}
                     alt={`${name} avatar`}
-                    sx={{ width: 32, height: 32, marginRight: 1 }}
+                    sx={{ width: 40, height: 40 }}
                     imgProps={{
                       onError: (e) => {
-                        e.currentTarget.onerror = null; // evita loop infinito
-                        e.currentTarget.src = '/fotoprofilo.png'; // fallback icona default
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = '/fotoprofilo.png';
                       }
                     }}
                   />
@@ -141,6 +136,7 @@ export default function UserSearch({ currentUserId, onSelect }) {
     </div>
   );
 }
+
 
 
 
