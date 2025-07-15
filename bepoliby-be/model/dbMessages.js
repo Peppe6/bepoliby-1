@@ -7,6 +7,5 @@ const bepolibySchema = new mongoose.Schema({
   uid: { type: String, required: true }
 }, { timestamps: true });
 
-// forza il nome della collezione a "messagecontents"
 module.exports = mongoose.model('Message', bepolibySchema, 'messagecontents');
 
