@@ -63,8 +63,8 @@ app.use(session({
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
-}).then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+}).then(() => console.log(" MongoDB connected"))
+  .catch((err) => console.error(" MongoDB connection error:", err));
 
 const PusherClient = new Pusher({
   appId: process.env.PUSHER_APP_ID,
@@ -81,9 +81,9 @@ app.post("/pusher/auth", verifyToken, (req, res) => {
   res.send(auth);
 });
 
-app.get("/", (req, res) => res.send("🌐 API Bepoliby attiva"));
+app.get("/", (req, res) => res.send(" API Bepoliby attiva"));
 
-// ✅ Elenco utenti con profilePicUrl dal dominio principale
+//  Elenco utenti con profilePicUrl dal dominio principale
 app.get("/api/v1/users", verifyToken, async (req, res) => {
   try {
     const utenti = await Utente.find().select("_id nome username");
@@ -95,12 +95,12 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
     }));
     res.status(200).json(utentiConFoto);
   } catch (err) {
-    console.error("❌ Errore nel recupero utenti:", err);
+    console.error(" Errore nel recupero utenti:", err);
     res.status(500).json({ error: "Errore interno nel recupero utenti" });
   }
 });
 
-// ✅ Ricerca utenti con profilePicUrl dal dominio principale
+/ Ricerca utenti con profilePicUrl dal dominio principale
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
     const q = req.query.q || "";
@@ -133,7 +133,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Recupera stanze
+/ Recupera stanze
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const rooms = await Rooms.find({ members: req.user.uid })
@@ -147,7 +147,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Recupera singola stanza
+/ Recupera singola stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId).populate("members", "nome username");
@@ -163,7 +163,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Crea stanza (evita duplicati)
+/ Crea stanza (evita duplicati)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -202,7 +202,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Invia messaggio
+/ Invia messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
@@ -253,11 +253,11 @@ app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (err) {
-    console.error("❌ Errore inserimento messaggio:", err);
+    console.error(" Errore inserimento messaggio:", err);
     res.status(500).json({ error: "Errore interno nel salvataggio messaggio" });
   }
 });
 
 app.listen(port, () => {
-  console.log(`🚀 Server attivo su porta ${port}`);
+  console.log(`Server attivo su porta ${port}`);
 });
