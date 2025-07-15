@@ -22,7 +22,7 @@ const SidebarChat = ({ id, name, lastMessageText, avatarSrc, selected }) => {
         alt={`Avatar di ${name}`}
         onError={() => setAvatarError(true)}
       >
-        {/* Mostra la lettera solo se non c’è avatar o se l’immagine è fallita */}
+        
         {(!avatarSrc || avatarError) && displayLetter}
       </Avatar>
       <div className="sidebarChat_info">
