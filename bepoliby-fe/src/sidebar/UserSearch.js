@@ -29,7 +29,6 @@ export default function UserSearch({ currentUserId, onSelect }) {
         });
 
         const data = await res.json();
-
         const processedResults = data.results.filter(u => u._id !== currentUserId);
 
         if (page === 1) {
@@ -109,18 +108,34 @@ export default function UserSearch({ currentUserId, onSelect }) {
                   }}
                   role="button"
                   aria-pressed="false"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    transition: 'background 0.2s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = '#f0f0f0'}
+                  onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <Avatar
-                    src={avatarUrl}
-                    alt={`${name} avatar`}
-                    sx={{ width: 32, height: 32, marginRight: 8 }}
-                    imgProps={{
-                      onError: (e) => {
+                  <Avatar sx={{ width: 40, height: 40 }}>
+                    <img
+                      src={avatarUrl}
+                      alt={`${name} avatar`}
+                      onError={(e) => {
                         e.currentTarget.onerror = null;
                         e.currentTarget.src = '/fotoprofilo.png';
-                      }
-                    }}
-                  />
+                      }}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        borderRadius: '50%',
+                      }}
+                    />
+                  </Avatar>
                   <strong>{name}</strong>
                 </div>
               );
