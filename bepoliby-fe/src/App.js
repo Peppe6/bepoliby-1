@@ -95,7 +95,7 @@ function App() {
         });
 
         window.history.replaceState(null, "", window.location.pathname);
-        console.log(" Token da URL salvato e utente impostato", { id, nome, username });
+        console.log(" Token da URL salvato e utente impostato");
       }
     }
   }, [dispatch]);
@@ -117,7 +117,7 @@ function App() {
           },
           token: tokenSession
         });
-        console.log(" Utente caricato da sessionStorage:", userData);
+        console.log(" Utente caricato da sessionStorage");
       } catch (e) {
         console.warn("Errore parsing user in sessionStorage", e);
       }
