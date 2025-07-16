@@ -142,7 +142,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
 
     res.status(200).json(rooms);
   } catch (err) {
-    console.error("❌ Errore nel recupero stanze:", err);
+    console.error("Errore nel recupero stanze:", err);
     res.status(500).json({ error: "Errore nel recupero stanze" });
   }
 });
@@ -197,7 +197,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
     await newRoom.save();
     res.status(201).json(newRoom);
   } catch (err) {
-    console.error("❌ Errore creazione stanza:", err);
+    console.error("Errore creazione stanza:", err);
     res.status(500).json({ message: "Errore interno nella creazione stanza" });
   }
 });
