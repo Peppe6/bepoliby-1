@@ -16,7 +16,7 @@ function verifyToken(req, res, next) {
   const token = parts[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    / dati utente in req.user per usarli nelle rotte
+    // dati utente in req.user per usarli nelle rotte
     req.user = {
       uid: decoded.id,
       nome: decoded.nome,
