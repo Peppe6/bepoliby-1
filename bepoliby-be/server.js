@@ -100,7 +100,7 @@ app.get("/api/v1/users", verifyToken, async (req, res) => {
   }
 });
 
-/ Ricerca utenti con profilePicUrl dal dominio principale
+// Ricerca utenti con profilePicUrl dal dominio principale
 app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   try {
     const q = req.query.q || "";
@@ -133,7 +133,7 @@ app.get("/api/v1/users/search", verifyToken, async (req, res) => {
   }
 });
 
-/ Recupera stanze
+// Recupera stanze
 app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   try {
     const rooms = await Rooms.find({ members: req.user.uid })
@@ -163,7 +163,7 @@ app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   }
 });
 
-/ Crea stanza (evita duplicati)
+// Crea stanza (evita duplicati)
 app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   const { name, members } = req.body;
 
@@ -202,7 +202,7 @@ app.post("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-/ Invia messaggio
+// Invia messaggio
 app.post("/api/v1/rooms/:roomId/messages", verifyToken, async (req, res) => {
   const { roomId } = req.params;
   const { message } = req.body;
