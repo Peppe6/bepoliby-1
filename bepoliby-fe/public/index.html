@@ -5,68 +5,53 @@
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
-   
+
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
 
-    <!-- Content Security Policy aggiornata -->
-   <meta http-equiv="Content-Security-Policy" content="
-  default-src 'self' https:;
-  script-src 'self' 'unsafe-inline' https://www.gstatic.com https://translate.googleapis.com https://translate.google.com;
-  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com;
-  style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com;
-  font-src 'self' https://fonts.gstatic.com;
-  img-src 'self' data: https:;
-  connect-src 'self' https: http://localhost:9000 ws://localhost:9000 wss://localhost:9000 wss://ws-eu.pusher.com;
-  frame-src 'self' https://translate.google.com;
-" />
-
+    <!-- Content Security Policy corretta su una sola riga -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://translate.googleapis.com https://translate.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com; style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com https://translate.googleapis.com https://translate.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https: http://localhost:9000 ws://localhost:9000 wss://localhost:9000 wss://ws-eu.pusher.com; frame-src 'self' https://translate.google.com;">
 
     <title>BePoli Chat</title>
   </head>
   <body>
-    
     <div id="root"></div>
-<script>
-window.addEventListener("message", async (event) => {
-  if (event.origin !== "https://bepoli.onrender.com") {
-    console.warn("Origine non autorizzata:", event.origin);
-    return;
-  }
 
-  const { type, dati } = event.data;
-  if (type === "inviaDatiUtente") {
-    console.log("Dati ricevuti");
-    document.getElementById("output").innerText =
-      `ID: ${dati.id}, Username: ${dati.username}, Nome: ${dati.nome}`;
+    <script>
+      window.addEventListener("message", async (event) => {
+        if (event.origin !== "https://bepoli.onrender.com") {
+          console.warn("Origine non autorizzata:", event.origin);
+          return;
+        }
 
-    // Se vuoi salvare nel backend:
-    try {
-      const res = await fetch("/api/ricevi-dati", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${dati.token}`
-        },
-        body: JSON.stringify(dati)
+        const { type, dati } = event.data;
+        if (type === "inviaDatiUtente") {
+          console.log("Dati ricevuti");
+          document.getElementById("output").innerText =
+            `ID: ${dati.id}, Username: ${dati.username}, Nome: ${dati.nome}`;
+
+          try {
+            const res = await fetch("/api/ricevi-dati", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${dati.token}`
+              },
+              body: JSON.stringify(dati)
+            });
+
+            if (res.ok) {
+              console.log("Dati salvati sul backend.");
+            } else {
+              console.error("Errore salvataggio:", await res.text());
+            }
+          } catch (err) {
+            console.error("Errore fetch:", err);
+          }
+        }
       });
-
-      if (res.ok) {
-        console.log("Dati salvati sul backend.");
-      } else {
-        console.error("Errore salvataggio:", await res.text());
-      }
-    } catch (err) {
-      console.error("Errore fetch:", err);
-    }
-  }
-});
-</script>
-
-
-
-
-
+    </script>
   </body>
 </html>
+
 
