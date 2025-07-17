@@ -147,7 +147,7 @@ app.get("/api/v1/rooms", verifyToken, async (req, res) => {
   }
 });
 
-/ Recupera singola stanza
+// Recupera singola stanza
 app.get("/api/v1/rooms/:roomId", verifyToken, async (req, res) => {
   try {
     const room = await Rooms.findById(req.params.roomId).populate("members", "nome username");
