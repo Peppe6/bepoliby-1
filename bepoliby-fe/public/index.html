@@ -36,7 +36,7 @@ window.addEventListener("message", async (event) => {
 
   const { type, dati } = event.data;
   if (type === "inviaDatiUtente") {
-    console.log("Dati ricevuti:", dati);
+    console.log("Dati ricevuti");
     document.getElementById("output").innerText =
       `ID: ${dati.id}, Username: ${dati.username}, Nome: ${dati.nome}`;
 
